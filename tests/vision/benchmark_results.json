@@ -1,0 +1,42 @@
+{
+  "timestamp": "2026-04-26T16:43:17.992363+00:00",
+  "results": {
+    "Haar+Histogram (OpenCV)": {
+      "match": null,
+      "confidence": 0.0,
+      "time_ms": 21.53921127319336,
+      "correct": null
+    },
+    "YuNet+SFace (OpenCV DNN)": {
+      "match": "ismail",
+      "confidence": 0.5446960399021918,
+      "time_ms": 14.712810516357422,
+      "correct": null
+    },
+    "ArcFace (buffalo_l)": {
+      "match": null,
+      "confidence": 0.018775954842567444,
+      "time_ms": 223.8919734954834,
+      "correct": null
+    },
+    "SFace (buffalo_s)": {
+      "match": "ismail",
+      "confidence": 0.43030011653900146,
+      "time_ms": 28.993844985961914,
+      "correct": null
+    },
+    "Gemini (Shirt Color)": {
+      "match": null,
+      "confidence": 0.0,
+      "time_ms": 437.9699230194092,
+      "correct": null
+    }
+  },
+  "ranking_by_speed": [
+    "YuNet+SFace (OpenCV DNN)",
+    "Haar+Histogram (OpenCV)",
+    "SFace (buffalo_s)",
+    "ArcFace (buffalo_l)",
+    "Gemini (Shirt Color)"
+  ]
+}
