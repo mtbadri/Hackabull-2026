@@ -125,7 +125,7 @@ class SimpleSFaceAlgorithm:
 class ContinuousCameraTest:
     """Real-time camera test with face recognition overlay."""
 
-    def __init__(self, camera_index: int = 0, algorithm=None):
+    def __init__(self, camera_index=0, algorithm=None):
         self.camera_index = camera_index
         self.algorithm = algorithm
         self.cap = None
@@ -134,20 +134,28 @@ class ContinuousCameraTest:
         self.fps = 0.0
         self.last_fps_update = time.time()
         self.snapshot_count = 0
+        self.is_stream = isinstance(camera_index, str)
 
     def start(self) -> bool:
-        """Initialize camera."""
-        self.cap = cv2.VideoCapture(self.camera_index)
+        """Initialize camera or stream."""
+        if self.is_stream:
+            # For RTSP/RTMP streams, we'll use cv2.VideoCapture with the URL
+            log.info("Opening stream: %s", self.camera_index)
+            self.cap = cv2.VideoCapture(self.camera_index)
+        else:
+            # For local camera
+            self.cap = cv2.VideoCapture(self.camera_index)
+            if self.cap.isOpened():
+                # Set camera properties for better performance
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                self.cap.set(cv2.CAP_PROP_FPS, 30)
+        
         if not self.cap.isOpened():
-            log.error("Cannot open camera index %d", self.camera_index)
+            log.error("Cannot open video source: %s", self.camera_index)
             return False
 
-        # Set camera properties for better performance
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-        self.cap.set(cv2.CAP_PROP_FPS, 30)
-
-        log.info("Camera opened successfully")
+        log.info("Video source opened successfully")
         log.info("Resolution: %dx%d", 
                  int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
                  int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
@@ -309,6 +317,12 @@ def main():
         "--camera", type=int, default=0, help="Camera index (default: 0)"
     )
     parser.add_argument(
+        "--source",
+        type=str,
+        default=None,
+        help="Video source: camera index (0), RTSP URL (rtsp://...), or RTMP URL (rtmp://...)"
+    )
+    parser.add_argument(
         "--algorithm",
         type=str,
         default="sface",
@@ -320,7 +334,15 @@ def main():
     log.info("=" * 60)
     log.info("Continuous Camera Test")
     log.info("=" * 60)
-    log.info("Camera index: %d", args.camera)
+    
+    # Determine video source
+    if args.source:
+        video_source = args.source
+        log.info("Video source: %s", video_source)
+    else:
+        video_source = args.camera
+        log.info("Camera index: %d", args.camera)
+    
     log.info("Algorithm: %s", args.algorithm)
     log.info("Known faces directory: %s", KNOWN_FACES_DIR)
     
@@ -333,7 +355,7 @@ def main():
             return
     
     # Run test
-    test = ContinuousCameraTest(camera_index=args.camera, algorithm=algorithm)
+    test = ContinuousCameraTest(camera_index=video_source, algorithm=algorithm)
     test.run()
     
     log.info("Test complete!")
