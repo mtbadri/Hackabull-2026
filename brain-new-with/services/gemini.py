@@ -52,7 +52,7 @@ async def _call_gemini(image_b64: str, prompt: str, api_key: str) -> str:
     import google.generativeai as genai  # type: ignore
 
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel("gemini-3-flash-preview")
     image_data = base64.b64decode(image_b64)
     image = PIL.Image.open(io.BytesIO(image_data))
 

@@ -53,7 +53,7 @@ SERVICES = [
         "name": "Dashboard",
         "cmd": [
             sys.executable, "-m", "streamlit", "run",
-            "services/dashboard/app.py",
+            "dashboard/app.py",
             "--server.port", "8501",
             "--server.headless", "true",
         ],
@@ -104,21 +104,25 @@ def _port_open(host: str, port: int, timeout: float = 1.0) -> bool:
         return False
 
 
-def _kill_existing_mediamtx():
-    """Kill any mediamtx process already holding port 1935."""
+def _kill_port(port: int, label: str):
+    """Kill any process already holding a TCP port."""
     try:
         result = subprocess.run(
-            ["lsof", "-ti", "tcp:1935"], capture_output=True, text=True
+            ["lsof", "-ti", f"tcp:{port}"], capture_output=True, text=True
         )
         pids = result.stdout.strip().split()
         for pid in pids:
             if pid:
                 subprocess.run(["kill", "-9", pid], capture_output=True)
-                print(f"[mediamtx] Killed stale process on port 1935 (PID {pid})")
+                print(f"[{label}] Killed stale process on port {port} (PID {pid})")
         if pids:
             time.sleep(0.5)
     except Exception:
         pass
+
+
+def _kill_existing_mediamtx():
+    _kill_port(1935, "mediamtx")
 
 
 def _check_mediamtx():
@@ -136,6 +140,9 @@ def main():
 
     _check_mediamtx()
     _kill_existing_mediamtx()
+    _kill_port(8502, "Event Audio")
+    _kill_port(8000, "AI Brain")
+    _kill_port(8501, "Dashboard")
 
     for svc in SERVICES:
         name = svc["name"]

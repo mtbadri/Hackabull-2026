@@ -14,7 +14,6 @@ import uuid
 import base64
 import logging
 import tempfile
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -22,14 +21,12 @@ import subprocess
 import threading
 import time
 import av
-import numpy as np
 import cv2
 import certifi
 import requests as http_requests
 import google.generativeai as genai
 from pymongo import MongoClient
 from dotenv import load_dotenv
-from elevenlabs.client import ElevenLabs
 import pygame
 
 load_dotenv()
@@ -46,6 +43,11 @@ COOLDOWN_SECONDS = 10
 HEALTH_CHECK_INTERVAL_SECONDS = 5   # minimum seconds between health scans
 CONFIDENCE_THRESHOLD = 0.65        # minimum confidence to accept a match
 KNOWN_FACES_DIR = Path(__file__).parent / "known_faces"
+
+# When True, always return the closest person in the DB even if confidence is low.
+# When False, return None (no match) if Gemini isn't confident enough.
+# Override via .env:  ALWAYS_BEST_GUESS=false
+ALWAYS_BEST_GUESS: bool = os.getenv("ALWAYS_BEST_GUESS", "true").lower() != "false"
 
 HEALTH_SUBTYPE_MAP = {
     # drinking triggers
@@ -103,7 +105,7 @@ def save_event_json(event: dict) -> None:
 # ── Gemini ────────────────────────────────────────────────────────────────────
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-3.1-pro-preview")
+model = genai.GenerativeModel("gemini-3-flash-preview")
 
 # ── MongoDB ───────────────────────────────────────────────────────────────────
 
@@ -117,50 +119,33 @@ def connect_to_mongo():
     log.info(f"Connected to MongoDB: {db_name}.{col_name}")
     return client[db_name][col_name]
 
-# ── Known faces loader ────────────────────────────────────────────────────────
+# ── Known people loader (profiles only — no reference images needed) ──────────
 
 def load_known_faces() -> list[dict]:
-    """
-    Load reference images and profiles.
-    Reads the raw image bytes — no face detection needed at load time.
-    Returns list of { name, image_b64, mime_type, profile }
-    """
+    """Load profiles from known_faces/*.json. No images required."""
     known = []
-
     if not KNOWN_FACES_DIR.exists():
         log.warning(f"Known faces directory not found: {KNOWN_FACES_DIR}")
         return known
 
-    mime_map = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
+    for profile_file in sorted(KNOWN_FACES_DIR.glob("*.json")):
+        try:
+            profile = json.loads(profile_file.read_text())
+            shirt_color = profile.get("shirt_color", "")
+            if not shirt_color:
+                log.warning(f"No shirt_color in {profile_file.name}, skipping.")
+                continue
+            known.append({"name": profile.get("name", profile_file.stem), "profile": profile})
+            log.info(f"Loaded profile: {profile.get('name')} — shirt: {shirt_color}")
+        except Exception as e:
+            log.warning(f"Failed to load {profile_file.name}: {e}")
 
-    for img_file in sorted(KNOWN_FACES_DIR.iterdir()):
-        if img_file.suffix.lower() not in mime_map:
-            continue
-        profile_file = img_file.with_suffix(".json")
-        if not profile_file.exists():
-            log.warning(f"No profile JSON for {img_file.name}, skipping.")
-            continue
-
-        with open(img_file, "rb") as f:
-            image_b64 = base64.b64encode(f.read()).decode("utf-8")
-        with open(profile_file) as f:
-            profile = json.load(f)
-
-        known.append({
-            "name": profile.get("name", img_file.stem),
-            "image_b64": image_b64,
-            "mime_type": mime_map[img_file.suffix.lower()],
-            "profile": profile,
-        })
-        log.info(f"Loaded reference: {profile.get('name', img_file.stem)}")
-
-    log.info(f"Total known faces loaded: {len(known)}")
+    log.info(f"Total profiles loaded: {len(known)}")
     return known
 
-# ── Gemini matching ───────────────────────────────────────────────────────────
+# ── Gemini shirt-color matching ───────────────────────────────────────────────
 
 def is_frame_usable(frame_bgr) -> bool:
-    """Reject frames that are too dark or too blurry."""
     gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
     brightness = gray.mean()
     blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
@@ -174,51 +159,6 @@ def is_frame_usable(frame_bgr) -> bool:
     return True
 
 
-def _parse_gemini_json(text: str) -> dict:
-    """Strip markdown fences and parse JSON from Gemini response."""
-    if "```" in text:
-        text = text.split("```")[1]
-        if text.startswith("json"):
-            text = text[4:]
-    return json.loads(text.strip())
-
-
-def _verify_one(frame_b64: str, person: dict) -> float:
-    """
-    Ask Gemini: is the live frame the same person as this ONE reference photo?
-    Returns a confidence float 0.0–1.0.
-    """
-    parts = [
-        {"inline_data": {"mime_type": "image/jpeg", "data": frame_b64}},
-        {"inline_data": {"mime_type": person["mime_type"], "data": person["image_b64"]}},
-        f"""You are a strict face verification system.
-
-Image 1 is a live camera frame.
-Image 2 is a reference photo of {person['name']}.
-
-Task: Determine whether the person in Image 1 is the SAME individual as in Image 2.
-
-Focus only on permanent facial features: eye spacing, nose shape, jawline, face geometry, brow ridge.
-Ignore lighting, angle, expression, glasses, or hair differences.
-
-Be very conservative — only say yes if you are highly confident.
-
-Respond ONLY with this exact JSON (no extra text):
-{{"same_person": true, "confidence": 0.95}}
-or
-{{"same_person": false, "confidence": 0.10}}
-
-confidence must be a float between 0.0 and 1.0 representing how certain you are.""",
-    ]
-
-    response = model.generate_content(parts)
-    result = _parse_gemini_json(response.text.strip())
-    confidence = float(result.get("confidence", 0.0))
-    same = bool(result.get("same_person", False))
-    log.info(f"  [{person['name']}] same={same}, confidence={confidence:.2f}")
-    return confidence if same else 0.0
-
-
 def _resize_for_gemini(frame_bgr, max_width: int = 640):
     h, w = frame_bgr.shape[:2]
     if w > max_width:
@@ -229,58 +169,80 @@ def _resize_for_gemini(frame_bgr, max_width: int = 640):
 
 def match_with_gemini(frame_bgr, known_faces: list[dict]) -> dict | None:
     """
-    For each known person, fire GEMINI_PARALLEL_CALLS verification calls in
-    parallel and tally the votes. The person with the most confident majority
-    wins — only accepted if confidence >= CONFIDENCE_THRESHOLD.
+    Single Gemini call: ask what shirt color the person is wearing, then
+    match against the known shirt-color → profile mapping.
     """
     if not known_faces:
         return None
 
     if not is_frame_usable(frame_bgr):
-        log.debug("Frame rejected (quality check failed)")
         return None
 
     frame_bgr = _resize_for_gemini(frame_bgr)
     _, buf = cv2.imencode(".jpg", frame_bgr)
     frame_b64 = base64.b64encode(buf).decode("utf-8")
 
-    # Build one task per (person, vote_index)
-    tasks = [(person, i) for person in known_faces for i in range(GEMINI_PARALLEL_CALLS)]
-
-    # votes[name] = list of confidence scores where same_person=True
-    votes: dict[str, list[float]] = {p["name"]: [] for p in known_faces}
-
-    with ThreadPoolExecutor(max_workers=len(tasks)) as executor:
-        futures = {executor.submit(_verify_one, frame_b64, person): person for person, _ in tasks}
-        for future in as_completed(futures):
-            person = futures[future]
-            try:
-                confidence = future.result()
-                if confidence > 0:
-                    votes[person["name"]].append(confidence)
-            except Exception as e:
-                log.warning(f"Vote failed for {person['name']}: {e}")
-
-    # Pick the person with the most positive votes, break ties by avg confidence
-    best_person = None
-    best_score = (0, 0.0)  # (vote_count, avg_confidence)
-
+    # Build color → person lookup from loaded profiles
+    color_map: dict[str, dict] = {}
     for person in known_faces:
-        name = person["name"]
-        positive_votes = votes[name]
-        count = len(positive_votes)
-        avg_conf = sum(positive_votes) / count if count else 0.0
-        log.info(f"  [{name}] votes={count}/{GEMINI_PARALLEL_CALLS}, avg_confidence={avg_conf:.2f}")
-        if (count, avg_conf) > best_score:
-            best_score = (count, avg_conf)
-            best_person = person
+        shirt_color = person["profile"].get("shirt_color", "").lower()
+        for word in shirt_color.split("/"):
+            color_map[word.strip()] = person
 
-    majority = GEMINI_PARALLEL_CALLS // 2 + 1  # need more than half
-    if best_person and best_score[0] >= majority and best_score[1] >= CONFIDENCE_THRESHOLD:
-        log.info(f"Matched: {best_person['name']} ({best_score[0]}/{GEMINI_PARALLEL_CALLS} votes, avg={best_score[1]:.2f})")
-        return best_person["profile"]
+    known_colors = ", ".join(
+        f"{p['profile']['shirt_color']} ({p['name']})" for p in known_faces
+    )
 
-    log.info(f"No confident majority match (best: {best_person['name'] if best_person else 'none'}, votes={best_score[0]}, avg={best_score[1]:.2f})")
+    parts = [
+        {"inline_data": {"mime_type": "image/jpeg", "data": frame_b64}},
+        f"""You are identifying a person by their shirt color from a first-person wearable camera.
+
+The known people and their shirt colors are:
+{known_colors}
+
+Look at the person visible in this image. What color is their shirt or top?
+
+Respond ONLY with this exact JSON (no extra text):
+{{"shirt_color": "green", "confidence": 0.95, "person_visible": true}}
+
+- shirt_color: the single best-matching color from the known list above
+- confidence: float 0.0–1.0 of how certain you are
+- person_visible: true if a person with a visible shirt is in frame, false otherwise""",
+    ]
+
+    try:
+        response = model.generate_content(parts)
+        text = response.text.strip()
+        if "```" in text:
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        result = json.loads(text.strip())
+    except Exception as e:
+        log.warning(f"Gemini shirt-color parse failed: {e}")
+        return None
+
+    if not result.get("person_visible", False):
+        log.info("Gemini: no person visible in frame")
+        return None
+
+    detected_color = result.get("shirt_color", "").lower().strip()
+    confidence = max(float(result.get("confidence", 0.0)), 0.05)
+    log.info(f"Shirt color detected: {detected_color!r} (confidence={confidence:.2f})")
+
+    # Direct color match
+    for keyword, person in color_map.items():
+        if keyword in detected_color or detected_color in keyword:
+            log.info(f"Matched: {person['name']} via shirt color '{detected_color}'")
+            return person["profile"]
+
+    # ALWAYS_BEST_GUESS: return whoever has the closest color name
+    if ALWAYS_BEST_GUESS:
+        guess = known_faces[0]
+        log.info(f"Best guess: {guess['name']} (no color match for '{detected_color}')")
+        return guess["profile"]
+
+    log.info(f"No color match for '{detected_color}'")
     return None
 
 # ── Voice script ──────────────────────────────────────────────────────────────
@@ -324,46 +286,43 @@ def log_event(collection, profile: dict) -> str:
 
 # ── Audio ─────────────────────────────────────────────────────────────────────
 
+def _play_mp3(tmp_path: str):
+    """Play an MP3 file via pygame or afplay."""
+    import platform
+    played = False
+    try:
+        pygame.mixer.init()
+        pygame.mixer.music.load(tmp_path)
+        pygame.mixer.music.play()
+        while pygame.mixer.music.get_busy():
+            pygame.time.Clock().tick(10)
+        played = True
+    except Exception:
+        pass
+    if not played and platform.system() == "Darwin":
+        subprocess.run(["afplay", tmp_path], check=False)
+
+
 def speak(voice_script: str):
-    api_key = os.getenv("ELEVENLABS_API_KEY", "")
-    voice_id = os.getenv("ELEVENLABS_VOICE_ID", "")
-
-    if not api_key or api_key == "your_elevenlabs_api_key_here":
-        log.info(f"[Voice] {voice_script}")
-        return
-
+    # ElevenLabs is reserved for the webapp → glasses audio path (port 8502).
+    # The vision engine plays locally via edge-tts only, so we never double-bill credits.
     tmp_path = None
     try:
-        client = ElevenLabs(api_key=api_key)
-        audio = client.text_to_speech.convert(
-            voice_id=voice_id,
-            text=voice_script,
-            model_id="eleven_flash_v2_5",
-        )
+        import asyncio, edge_tts
+        async def _synth():
+            chunks: list[bytes] = []
+            async for chunk in edge_tts.Communicate(voice_script, voice="en-US-AriaNeural").stream():
+                if chunk["type"] == "audio":
+                    chunks.append(chunk["data"])
+            return b"".join(chunks)
+        audio_bytes = asyncio.run(_synth())
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
-            for chunk in audio:
-                f.write(chunk)
+            f.write(audio_bytes)
             tmp_path = f.name
-
-        # Try pygame first, fall back to afplay on macOS
-        played = False
-        try:
-            pygame.mixer.init()
-            pygame.mixer.music.load(tmp_path)
-            pygame.mixer.music.play()
-            while pygame.mixer.music.get_busy():
-                pygame.time.Clock().tick(10)
-            played = True
-        except Exception:
-            pass
-
-        if not played:
-            import subprocess, platform
-            if platform.system() == "Darwin":
-                subprocess.run(["afplay", tmp_path], check=False)
-
+        _play_mp3(tmp_path)
     except Exception as e:
-        log.warning(f"Audio failed: {e}")
+        log.warning(f"edge-tts failed: {e}")
+        log.info(f"[Voice] {voice_script}")
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.remove(tmp_path)
@@ -508,6 +467,8 @@ def run(video_source: str | None = None):
     ABSENT_THRESHOLD = 30
     last_match_time = 0.0
     last_health_check_time = 0.0
+    face_first_seen_time: float | None = None  # when face continuously in frame since
+    FACE_DWELL_SECONDS = 3.0  # must be in frame this long before Gemini fires
 
     global _recognizing, _pending_profile, _health_running
 
@@ -529,18 +490,21 @@ def run(video_source: str | None = None):
 
         # ── Detect face presence every frame (cheap, local) ──
         face_present = has_face(frame)
+        now = time.time()
 
         if not face_present:
             face_absent_frames += 1
+            face_first_seen_time = None  # reset dwell timer when face leaves
             if face_absent_frames >= ABSENT_THRESHOLD and current_match is not None:
                 log.info("Face left frame — resetting (was: %s)", current_match)
                 current_match = None
                 last_label = ("Scanning...", (200, 200, 200))
         else:
             face_absent_frames = 0
+            if face_first_seen_time is None:
+                face_first_seen_time = now  # start dwell timer
 
         # ── After cooldown, reset current_match so we scan for new people ──
-        now = time.time()
         if current_match is not None and (now - last_match_time) >= COOLDOWN_SECONDS:
             current_match = None
             last_label = ("Scanning...", (200, 200, 200))
@@ -572,10 +536,12 @@ def run(video_source: str | None = None):
 
         # ── Fire background face-match if conditions met ──
         cooldown_elapsed = (now - last_match_time) >= COOLDOWN_SECONDS
+        face_dwelled = face_first_seen_time is not None and (now - face_first_seen_time) >= FACE_DWELL_SECONDS
         with _lock:
             should_recognise = (
                 current_match is None
                 and cooldown_elapsed
+                and face_dwelled
                 and not _recognizing
                 and frame_count % CHECK_EVERY_N_FRAMES == 0
                 and known_faces

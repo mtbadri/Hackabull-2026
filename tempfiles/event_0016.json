@@ -1,6 +1,6 @@
 {
-  "event_id": "2252bc22-2b92-4954-9f85-9f52db77aca4",
-  "timestamp": "2026-04-26T13:05:50.274360+00:00",
+  "event_id": "48d5695e-ba5b-45d5-9976-0187e7c97a61",
+  "timestamp": "2026-04-26T12:58:03.480980+00:00",
   "patient_id": "patient_001",
   "type": "identity",
   "subtype": "face_recognized",
@@ -10,13 +10,12 @@
       "name": "mohammed",
       "relationship": "dad",
       "background": "He is a doctor living in NYC",
-      "last_conversation": "you meet his kids",
-      "shirt_color": "green"
+      "last_conversation": "you meet his kids"
     }
   },
   "source": "vision_engine_v1",
   "verified": true,
   "voice_script": "Badri, your dad mohammed is here. He is a doctor living in NYC. Last time you spoke, you meet his kids.",
   "processing_status": "success",
-  "processed_at": "2026-04-26T13:05:50.274370+00:00"
+  "processed_at": "2026-04-26T12:58:03.480989+00:00"
 }

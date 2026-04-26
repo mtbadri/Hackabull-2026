@@ -1,6 +1,6 @@
 {
-  "event_id": "766e2ba6-53ea-413f-9e62-03921c30c4d6",
-  "timestamp": "2026-04-26T13:05:37.989508+00:00",
+  "event_id": "6654b58e-2529-49d6-b840-9d23b9afb81f",
+  "timestamp": "2026-04-26T12:54:48.052362+00:00",
   "patient_id": "patient_001",
   "type": "identity",
   "subtype": "face_recognized",
@@ -10,13 +10,12 @@
       "name": "Ismail",
       "relationship": "son",
       "background": "He is a software engineer living in Tampa",
-      "last_conversation": "he told you about his new job",
-      "shirt_color": "yellow"
+      "last_conversation": "he told you about his new job"
     }
   },
   "source": "vision_engine_v1",
   "verified": true,
   "voice_script": "Badri, your son Ismail is here. He is a software engineer living in Tampa. Last time you spoke, he told you about his new job.",
   "processing_status": "success",
-  "processed_at": "2026-04-26T13:05:37.989518+00:00"
+  "processed_at": "2026-04-26T12:54:48.052370+00:00"
 }
