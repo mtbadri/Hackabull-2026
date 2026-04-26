@@ -33,12 +33,8 @@ ENV/
 audio/*.mp3
 audio/
 
-# ─── Known Faces (personal data — do not commit) ─────────────────────────────
-services/vision/known_faces/*.jpg
-services/vision/known_faces/*.jpeg
-services/vision/known_faces/*.png
-# Keep .json profile files but not face images
-# To share profiles without images, commit only the .json files
+# ─── Known Faces ─────────────────────────────────────────────────────────────
+# Images are committed alongside profile JSON files
 
 # ─── IDE / Editor ────────────────────────────────────────────────────────────
 .vscode/
