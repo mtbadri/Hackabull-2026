@@ -1,6 +1,6 @@
 {
-  "event_id": "ce10fd10-d0c5-4842-8b00-444df4d7b19f",
-  "timestamp": "2026-04-26T14:34:56.899327+00:00",
+  "event_id": "d87818a3-403c-441d-9808-feda1138642e",
+  "timestamp": "2026-04-26T15:38:26.058735+00:00",
   "patient_id": "patient_001",
   "type": "identity",
   "subtype": "face_recognized",
@@ -18,5 +18,5 @@
   "verified": true,
   "voice_script": "Jhon, your neighbor Ismail is here. he is a chemical engineer from Intel. Last time you spoke, you were talking about the new Bollywood in theater.",
   "processing_status": "success",
-  "processed_at": "2026-04-26T14:34:56.899342+00:00"
+  "processed_at": "2026-04-26T15:38:26.058768+00:00"
 }

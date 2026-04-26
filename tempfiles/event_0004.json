@@ -1,22 +1,22 @@
 {
-  "event_id": "11ab0caf-ba37-451c-b806-3d8a412bd1ab",
-  "timestamp": "2026-04-26T14:35:34.077552+00:00",
+  "event_id": "5686a04d-adca-45e0-a48c-29c9983f2a67",
+  "timestamp": "2026-04-26T15:38:52.551912+00:00",
   "patient_id": "patient_001",
   "type": "identity",
   "subtype": "face_recognized",
   "confidence": 1.0,
   "metadata": {
     "person_profile": {
-      "name": "Taikhoom",
-      "relationship": "grandson",
-      "background": "He is a chemical engineering student at USF",
-      "last_conversation": "you were talking about his next camping trip",
-      "shirt_color": "black"
+      "name": "Ismail",
+      "relationship": "neighbor",
+      "background": "he is a chemical engineer from Intel",
+      "last_conversation": "you were talking about the new Bollywood in theater",
+      "shirt_color": "yellow"
     }
   },
   "source": "vision_engine_v1",
   "verified": true,
-  "voice_script": "Jhon, your grandson Taikhoom is here. He is a chemical engineering student at USF. Last time you spoke, you were talking about his next camping trip.",
+  "voice_script": "Jhon, your neighbor Ismail is here. he is a chemical engineer from Intel. Last time you spoke, you were talking about the new Bollywood in theater.",
   "processing_status": "success",
-  "processed_at": "2026-04-26T14:35:34.077571+00:00"
+  "processed_at": "2026-04-26T15:38:52.551941+00:00"
 }

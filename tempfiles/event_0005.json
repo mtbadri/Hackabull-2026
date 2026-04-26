@@ -1,22 +1,22 @@
 {
-  "event_id": "201427c3-bf55-4afb-b0c1-2af67387fa28",
-  "timestamp": "2026-04-26T14:36:02.018174+00:00",
+  "event_id": "64ecfd4c-4c20-4f16-a88e-e420e3d0f93d",
+  "timestamp": "2026-04-26T15:39:12.046684+00:00",
   "patient_id": "patient_001",
   "type": "identity",
   "subtype": "face_recognized",
   "confidence": 1.0,
   "metadata": {
     "person_profile": {
-      "name": "mohammed",
-      "relationship": "son",
-      "background": "He is a student at USF",
-      "last_conversation": "you were talking about how he has never won a game in basketball",
-      "shirt_color": "green"
+      "name": "Ismail",
+      "relationship": "neighbor",
+      "background": "he is a chemical engineer from Intel",
+      "last_conversation": "you were talking about the new Bollywood in theater",
+      "shirt_color": "yellow"
     }
   },
   "source": "vision_engine_v1",
   "verified": true,
-  "voice_script": "Jhon, your son mohammed is here. He is a student at USF. Last time you spoke, you were talking about how he has never won a game in basketball.",
+  "voice_script": "Jhon, your neighbor Ismail is here. he is a chemical engineer from Intel. Last time you spoke, you were talking about the new Bollywood in theater.",
   "processing_status": "success",
-  "processed_at": "2026-04-26T14:36:02.018187+00:00"
+  "processed_at": "2026-04-26T15:39:12.046695+00:00"
 }

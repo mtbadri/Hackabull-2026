@@ -1,22 +1,22 @@
 {
-  "event_id": "938644d8-c980-424a-a9cc-fafea91a6602",
-  "timestamp": "2026-04-26T14:35:18.199452+00:00",
+  "event_id": "35331413-b377-4602-bec6-3f6701bf4846",
+  "timestamp": "2026-04-26T15:38:40.285546+00:00",
   "patient_id": "patient_001",
   "type": "identity",
   "subtype": "face_recognized",
   "confidence": 1.0,
   "metadata": {
     "person_profile": {
-      "name": "mohammed",
-      "relationship": "son",
-      "background": "He is a student at USF",
-      "last_conversation": "you were talking about how he has never won a game in basketball",
-      "shirt_color": "green"
+      "name": "Taikhoom",
+      "relationship": "grandson",
+      "background": "He is a chemical engineering student at USF",
+      "last_conversation": "you were talking about his next camping trip",
+      "shirt_color": "black"
     }
   },
   "source": "vision_engine_v1",
   "verified": true,
-  "voice_script": "Jhon, your son mohammed is here. He is a student at USF. Last time you spoke, you were talking about how he has never won a game in basketball.",
+  "voice_script": "Jhon, your grandson Taikhoom is here. He is a chemical engineering student at USF. Last time you spoke, you were talking about his next camping trip.",
   "processing_status": "success",
-  "processed_at": "2026-04-26T14:35:18.199466+00:00"
+  "processed_at": "2026-04-26T15:38:40.285560+00:00"
 }
