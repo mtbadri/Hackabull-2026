@@ -18,7 +18,7 @@
       "command": "uvx",
       "args": ["elevenlabs-mcp@latest"],
       "env": {
-        "ELEVENLABS_API_KEY": "sk_4fdb977bc3ff083111b8156c1c6ec94f5be9adb7ff9c7562"
+        "ELEVENLABS_API_KEY": "sk_5f9750c5028abb1177c9150df357049d34a831147905c713"
       },
       "disabled": false,
       "autoApprove": []
