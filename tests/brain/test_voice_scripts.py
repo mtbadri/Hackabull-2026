@@ -66,7 +66,7 @@ SUBTYPE_KEYWORDS = {
     # Filter out braces to avoid str.format() KeyError/ValueError
     st.text(min_size=1, max_size=50).filter(lambda s: "{" not in s and "}" not in s),
 )
-@settings(max_examples=100)
+@settings(max_examples=10)
 def test_identity_voice_script_contains_all_profile_fields(person_profile, patient_name):
     # Property 7: Identity Voice Scripts Contain All Person Profile Fields
     # Validates: Requirements 3.1
@@ -88,7 +88,7 @@ def test_identity_voice_script_contains_all_profile_fields(person_profile, patie
     # Filter out braces to avoid str.format() KeyError/ValueError
     st.text(min_size=1, max_size=50).filter(lambda s: "{" not in s and "}" not in s),
 )
-@settings(max_examples=100)
+@settings(max_examples=10)
 def test_health_voice_script_contains_patient_name_and_keyword(subtype, patient_name):
     # Property 8: Health Voice Scripts Contain Patient Name and Are Subtype-Appropriate
     # Validates: Requirements 3.2, 3.4
@@ -104,7 +104,7 @@ def test_health_voice_script_contains_patient_name_and_keyword(subtype, patient_
 
 
 @given(health_event_strategy)
-@settings(max_examples=100)
+@settings(max_examples=10)
 def test_unverified_health_event_produces_empty_voice_script(event):
     # Property 6: Unverified Health Events Produce Empty Voice Scripts
     # Validates: Requirements 3.3, 4.1

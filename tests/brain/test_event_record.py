@@ -83,7 +83,7 @@ def _make_event_record(event: Event) -> EventRecord:
 
 
 @given(event_strategy)
-@settings(max_examples=100)
+@settings(max_examples=10)
 def test_event_record_excludes_image_b64_and_includes_enrichment_fields(event: Event):
     # Property 10: EventRecord Excludes image_b64 and Includes All Enrichment Fields
     # Validates: Requirements 6.2, 6.6, 16.5

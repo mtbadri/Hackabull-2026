@@ -129,7 +129,7 @@ All property-based tests use `hypothesis` with `@settings(max_examples=100)`.
     - Generate arbitrary `Event` instances containing `image_b64`; construct `EventRecord` from them; assert `"image_b64"` is absent from `record.model_dump()` and that `verified`, `voice_script`, `processing_status`, `processed_at` are all present
     - **Validates: Requirements 6.2, 6.6, 16.5**
 
-- [~] 10. Implement POST /event route and full processing pipeline
+- [x] 10. Implement POST /event route and full processing pipeline
   - [x] 10.1 Create `services/brain/routes/event.py`
     - Define `router = APIRouter()`; implement `POST /event` handler accepting `event: Event`
     - Store `event.event_id` on `request.state.event_id` for the global exception handler
@@ -144,61 +144,61 @@ All property-based tests use `hypothesis` with `@settings(max_examples=100)`.
     - `message` = `"Event processed successfully."` when no failures; `"Event processed with partial failures."` when any step failed
     - _Requirements: 1.1, 1.5, 1.6, 8.2, 8.3, 8.4_
 
-  - [-] 10.2 Write property test for valid/invalid event acceptance (Property 1)
+  - [x] 10.2 Write property test for valid/invalid event acceptance (Property 1)
     - **Property 1: Valid Events Are Accepted, Invalid Events Are Rejected**
     - Generate valid `Event` instances → assert HTTP 200
     - Generate payloads with missing required fields or wrong types → assert HTTP 422
     - **Validates: Requirements 1.2, 1.4, 16.2**
 
-  - [-] 10.3 Write property test for event_id echo (Property 2)
+  - [x] 10.3 Write property test for event_id echo (Property 2)
     - **Property 2: HTTP 200 Response Always Contains Echoed event_id**
     - Generate valid `Event` instances with mocked downstream; assert `response.json()["event_id"] == event.event_id`
     - **Validates: Requirements 1.5, 8.2**
 
-  - [-] 10.4 Write property test for identity events skipping Gemini (Property 3)
+  - [x] 10.4 Write property test for identity events skipping Gemini (Property 3)
     - **Property 3: Identity Events Always Set verified=True Without Calling Gemini**
     - Generate Events with `type="identity"`; assert Gemini client is never called and the resulting `EventRecord.verified` is `True`
     - **Validates: Requirements 2.4**
 
-  - [ ] 10.5 Write property test for downstream failures never producing HTTP 5xx (Property 11)
+  - [x] 10.5 Write property test for downstream failures never producing HTTP 5xx (Property 11)
     - **Property 11: Downstream Failures Never Produce HTTP 5xx**
     - Inject failures (raise `Exception`) into Gemini, ElevenLabs, Pygame, and MongoDB mocks in all combinations; assert every response has status code 200
     - **Validates: Requirements 8.3, 8.4, 20.2, 20.3, 20.4**
 
-- [~] 11. Implement GET /health route
-  - [~] 11.1 Create `services/brain/routes/health.py`
+- [x] 11. Implement GET /health route
+  - [x] 11.1 Create `services/brain/routes/health.py`
     - Define `router = APIRouter()`; implement `GET /health` handler
     - Attempt `await motor_client.admin.command("ping")` with a 3-second timeout
     - Return `HealthResponse(status="ok")` with HTTP 200 on success
     - Return `JSONResponse(status_code=503, content={"status": "degraded", "reason": "mongodb_unreachable"})` on failure
     - _Requirements: 7.4, 7.5_
 
-  - [~] 11.2 Write unit tests for health endpoint
+  - [x] 11.2 Write unit tests for health endpoint
     - Test HTTP 200 `{"status": "ok"}` when Motor ping succeeds
     - Test HTTP 503 `{"status": "degraded", "reason": "mongodb_unreachable"}` when Motor ping raises
     - _Requirements: 7.4, 7.5_
 
-- [~] 12. Checkpoint — full pipeline wired
+- [x] 12. Checkpoint — full pipeline wired
   - Ensure all tests pass, ask the user if questions arise.
 
-- [~] 13. Enforce Content-Type and API contract compliance
-  - [~] 13.1 Verify all responses from `/event` and `/health` carry `Content-Type: application/json`
+- [x] 13. Enforce Content-Type and API contract compliance
+  - [x] 13.1 Verify all responses from `/event` and `/health` carry `Content-Type: application/json`
     - FastAPI returns this by default for `JSONResponse` and Pydantic response models; confirm the global exception handler also uses `JSONResponse`
     - Add `response_class=JSONResponse` to any route that might return a plain `dict`
     - _Requirements: 8.1_
 
-  - [~] 13.2 Write property test for Content-Type header (Property 12)
+  - [x] 13.2 Write property test for Content-Type header (Property 12)
     - **Property 12: All Brain Responses Have Content-Type application/json**
     - Send valid events, invalid events, and requests that trigger the global exception handler; assert every response has `Content-Type: application/json`
     - **Validates: Requirements 8.1**
 
-- [~] 14. Wire `services/brain/models.py` and finalize imports
+- [x] 14. Wire `services/brain/models.py` and finalize imports
   - Create `services/brain/models.py` re-exporting `Event`, `EventRecord`, `EventResponse`, `HealthResponse` from `shared/contract.py` for clean intra-service imports
   - Confirm all route and service modules import from `services/brain/models` (not directly from `shared/`)
   - Run `python -m pytest tests/brain/ -x` and fix any import or type errors
   - _Requirements: 16.2, 16.3_
 
-- [~] 15. Final checkpoint — all tests pass
+- [x] 15. Final checkpoint — all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ---

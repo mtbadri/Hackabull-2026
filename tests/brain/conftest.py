@@ -31,7 +31,7 @@ def mock_settings(monkeypatch):
 
 
 @pytest.fixture
-def client(mock_settings):
+def client(mock_settings, monkeypatch):
     """
     FastAPI TestClient with all downstream services mocked.
 
@@ -45,17 +45,28 @@ def client(mock_settings):
     from services.brain.config import get_settings
     get_settings.cache_clear()
 
+    # Redirect pydantic-settings away from the real .env file so that extra
+    # variables in the repo .env (Snowflake, vision_host, etc.) don't cause
+    # "Extra inputs are not permitted" validation errors.
+    from pydantic_settings import SettingsConfigDict
+    import services.brain.config as config_module
+    monkeypatch.setattr(
+        config_module.Settings,
+        "model_config",
+        SettingsConfigDict(env_file="nonexistent.env", env_file_encoding="utf-8"),
+    )
+
     with (
         patch(
-            "services.brain.services.mongodb.init_motor",
+            "services.brain.main.init_motor",
             return_value=MagicMock(),
         ),
         patch(
-            "services.brain.services.mongodb.verify_mongodb",
+            "services.brain.main.verify_mongodb",
             new_callable=lambda: lambda *a, **kw: AsyncMock(return_value=True)(),
         ),
         patch(
-            "services.brain.services.audio.init_pygame",
+            "services.brain.main.init_pygame",
             return_value=None,
         ),
         patch(

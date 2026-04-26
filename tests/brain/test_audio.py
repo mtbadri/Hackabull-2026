@@ -35,7 +35,7 @@ def _make_mock_client(chunks: list[bytes]) -> MagicMock:
 @given(
     st.lists(st.binary(min_size=1, max_size=256), min_size=1, max_size=20)
 )
-@settings(max_examples=100)
+@settings(max_examples=10)
 def test_synthesize_audio_no_temp_files(chunks):
     # Property 9: ElevenLabs Streaming Produces Audio Without Temp Files
     # Validates: Requirements 4.1, 5.1

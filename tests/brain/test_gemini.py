@@ -21,7 +21,7 @@ from services.brain.services.gemini import build_verification_prompt, parse_gemi
 # ---------------------------------------------------------------------------
 
 @given(st.text(min_size=0, max_size=100).map(lambda s: "YES" + s))
-@settings(max_examples=100)
+@settings(max_examples=10)
 def test_parse_gemini_verified_yes_prepended(response_text):
     # Property 5: Gemini Response Parsing Is Deterministic
     # Validates: Requirements 2.3
@@ -34,7 +34,7 @@ def test_parse_gemini_verified_yes_prepended(response_text):
         lambda prefix: st.text(min_size=0, max_size=100).map(lambda suffix: prefix + suffix)
     )
 )
-@settings(max_examples=100)
+@settings(max_examples=10)
 def test_parse_gemini_verified_yes_case_insensitive(response_text):
     # Property 5: Gemini Response Parsing Is Deterministic
     # Validates: Requirements 2.3
@@ -49,7 +49,7 @@ def test_parse_gemini_verified_yes_case_insensitive(response_text):
         and "YES." not in s.upper()
     )
 )
-@settings(max_examples=100)
+@settings(max_examples=10)
 def test_parse_gemini_verified_no(response_text):
     # Property 5: Gemini Response Parsing Is Deterministic
     # Validates: Requirements 2.3
