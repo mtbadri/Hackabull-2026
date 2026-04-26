@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "name": "Known Faces Completeness Check",
+  "description": "Ensure every new face image has a matching JSON profile",
+  "version": "1",
+  "when": {
+    "type": "fileCreated",
+    "patterns": [
+      "services/vision/known_faces/*.jpg",
+      "services/vision/known_faces/*.png"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A new face image was added to services/vision/known_faces/. Check if a matching .json profile file exists with the same base name. If not, remind the user to create it with the required keys: name, relationship, background, last_conversation."
+  }
+}

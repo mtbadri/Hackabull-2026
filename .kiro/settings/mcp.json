@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "mongodb": {
+      "command": "/opt/homebrew/bin/npx",
+      "args": [
+        "-y",
+        "@mongodb-js/mongodb-mcp-server"
+      ],
+      "env": {
+        "MONGODB_URI": "${MONGODB_URI}"
+      },
+      "disabled": false,
+      "autoApprove": ["find", "aggregate", "listCollections", "listDatabases"]
+    },
+    "filesystem": {
+      "command": "/opt/homebrew/bin/npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "services/vision/known_faces"
+      ],
+      "disabled": false,
+      "autoApprove": ["read_file", "list_directory"]
+    }
+  }
+}

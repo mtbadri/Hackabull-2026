@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Requirements Sync Reminder",
+  "description": "Check if new imports in Python files need to be added to requirements.txt",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "services/**/*.py"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Check if any new top-level import statements were added to the edited Python file that are not already listed in requirements.txt. If so, remind the user to add the package to requirements.txt with an appropriate pinned version. Only flag genuinely new third-party packages — ignore stdlib modules and packages already in requirements.txt."
+  }
+}

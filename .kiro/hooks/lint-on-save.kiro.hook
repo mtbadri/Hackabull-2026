@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Lint Python on Save",
+  "description": "Run flake8 lint check when a Python file is saved",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "services/**/*.py"
+    ]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "python -m flake8 --max-line-length=120 --ignore=E501,W503 services/"
+  }
+}

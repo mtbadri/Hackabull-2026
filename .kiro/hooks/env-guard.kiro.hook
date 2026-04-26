@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Env File Guard",
+  "description": "Block writes to .env to prevent accidental credential commits",
+  "version": "1",
+  "when": {
+    "type": "preToolUse",
+    "toolTypes": [
+      "write"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "If the file being written is '.env', stop immediately and warn the user that .env contains secrets and should never be committed. Otherwise proceed normally."
+  }
+}
