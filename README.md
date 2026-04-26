@@ -13,7 +13,7 @@ This branch implements the **Caregiver Portal** — a Streamlit web app that giv
 The dashboard does three things:
 
 1. **Live Event Feed** — polls MongoDB Atlas every 5 seconds and displays the 50 most recent events in a color-coded table (yellow = health, green = identity)
-2. **Health Trends Chart** — renders a Plotly time-series chart of health event frequency (Snowflake-backed; shows a placeholder when Snowflake is unavailable)
+2. **Health Trends Chart** — renders a Plotly time-series chart placeholder (health trend data integration is not in this branch)
 3. **Family Sync Sidebar** — lets caregivers upload a photo and profile for a new person so the Vision Engine will recognize them on next startup
 
 ---
@@ -27,11 +27,11 @@ services/dashboard/
 ├── data/
 │   ├── __init__.py
 │   ├── mongodb_reader.py         # get_mongo_client(), fetch_latest_events()
-│   └── snowflake_reader.py       # fetch_health_trends() — stub returning (None, True)
+│   └── snowflake_reader.py       # not implemented on this branch
 └── components/
     ├── __init__.py
     ├── event_feed.py             # render_event_feed() — DataFrame + color coding
-    └── health_charts.py          # render_health_chart() — Plotly line chart
+    └── health_charts.py          # render_health_chart() — Plotly placeholder
 ```
 
 ---
@@ -47,8 +47,6 @@ class DashboardSettings(BaseSettings):
     MONGODB_URI: str
     MONGODB_DB: str
     MONGODB_COLLECTION: str
-    SNOWFLAKE_ACCOUNT: str   # required by settings even if Snowflake is stubbed
-    ...
     PATIENT_NAME: str
 ```
 
@@ -67,10 +65,6 @@ def fetch_latest_events(n: int = 50) -> tuple[list[dict], bool]:
         return (_cached_data, True)  # (stale data, mongo_error=True)
 ```
 
-### `data/snowflake_reader.py` — Health Trends (Stubbed)
-
-Snowflake integration is intentionally stubbed on this branch. `fetch_health_trends()` immediately returns `(None, True)`, which tells the chart component to show the "unavailable" placeholder. The full implementation lives in the Snowflake branch.
-
 ### `components/event_feed.py` — Live Feed Table
 
 `render_event_feed(events, mongo_error)` builds a pandas DataFrame from the raw event dicts, selects the seven display columns, and applies row-level background color via `df.style.apply()`:
@@ -84,7 +78,7 @@ If `mongo_error` is `True`, a `st.warning` banner appears above the table. If th
 
 ### `components/health_charts.py` — Plotly Chart
 
-`render_health_chart(df, snowflake_error)` renders a `px.line` chart from a DataFrame with `hour` and `count` columns. When `snowflake_error` is `True` (which is always the case on this branch), it shows `st.info("Snowflake unavailable — chart not available")` and renders an empty titled chart as a placeholder so the tab layout stays intact.
+`render_health_chart(df, error)` renders a `px.line` chart when data is available. On this branch, health trend data is not integrated, so it always shows an empty titled placeholder chart so the tab layout stays intact.
 
 ### `app.py` — Main App
 
@@ -92,8 +86,8 @@ The entry point wires everything together. Execution order matters in Streamlit,
 
 1. `st.set_page_config(...)` — must be the very first Streamlit call
 2. `get_settings()` — fails fast if env vars are missing
-3. Session state initialization — sets defaults for `events`, `mongo_error`, `health_df`, `snowflake_error`, `last_refresh`
-4. Data fetch — calls `fetch_latest_events()` and `fetch_health_trends()` on every rerun, storing results in `st.session_state`
+3. Session state initialization — sets defaults for `events`, `mongo_error`, `health_df`, `last_refresh`
+4. Data fetch — calls `fetch_latest_events()` on every rerun, storing results in `st.session_state`
 5. Sidebar — Family Sync form (see below)
 6. Header — patient name + last refresh timestamp
 7. Tabs — `Live Feed` and `Health Trends`
@@ -141,7 +135,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Fill in the MongoDB section at minimum. The Snowflake variables are required by `DashboardSettings` (pydantic will reject missing fields) but Snowflake is stubbed so the values don't need to be real — you can use placeholder strings:
+Fill in the MongoDB section at minimum. The other variables are required by `DashboardSettings` but can be placeholders on this branch:
 
 ```dotenv
 # Required — must be real
@@ -150,14 +144,6 @@ MONGODB_DB=auraguard
 MONGODB_COLLECTION=events
 PATIENT_NAME=Ismail
 PATIENT_ID=patient_001
-
-# Required by settings model — can be placeholders if you don't have Snowflake
-SNOWFLAKE_ACCOUNT=placeholder
-SNOWFLAKE_USER=placeholder
-SNOWFLAKE_PASSWORD=placeholder
-SNOWFLAKE_DATABASE=placeholder
-SNOWFLAKE_SCHEMA=placeholder
-SNOWFLAKE_WAREHOUSE=placeholder
 
 # Not used by the dashboard — can be placeholders
 GEMINI_API_KEY=placeholder
@@ -187,7 +173,7 @@ Open `http://localhost:8501` in your browser.
 ### What you should see
 
 - **Live Feed tab** — a color-coded table of events (yellow rows for health events, green for identity). Refreshes every 5 seconds automatically.
-- **Health Trends tab** — an empty Plotly chart with the message "Snowflake unavailable — chart not available" (expected on this branch).
+- **Health Trends tab** — an empty Plotly chart placeholder (health trend data integration is not in this branch).
 - **Sidebar** — a "Family Sync" form. Upload a photo, fill in the fields, and click Save. Check `services/vision/known_faces/` to confirm the `.jpg` and `.json` were written.
 - **MongoDB warning** — disconnect your internet or use a bad URI to see the yellow warning banner appear above the table while stale cached data continues to display.
 
@@ -201,7 +187,7 @@ The dashboard is designed to never crash due to an external service being unavai
 |---|---|
 | MongoDB unreachable | Shows last cached events + yellow warning banner |
 | MongoDB returns empty | Shows "No events yet." info message |
-| Snowflake unavailable | Shows placeholder chart + info message (always on this branch) |
+| Health trends data unavailable | Shows empty placeholder chart |
 | Missing env var at startup | Logs error and exits with code 1 before rendering anything |
 
 ---
@@ -234,7 +220,7 @@ MongoDB Atlas  ◄────────────────────�
         ▼                                                  │
 Caregiver Dashboard  :8501  ◄── THIS BRANCH               │
   - Live event feed (color-coded)                          │
-  - Health trend charts (Snowflake)                        │
+  - Health trends chart (placeholder)                      │
   - Family Sync sidebar ─────────────────────────────────►┘
                           writes known_faces/ to disk,
                           Vision Engine picks up on restart
@@ -295,7 +281,7 @@ See the main [README.md](README.md) for full setup instructions including hardwa
 
 | Feature | Status |
 |---|---|
-| Snowflake health trends | Stubbed — `fetch_health_trends()` returns `(None, True)`. Full implementation is in the Snowflake branch. |
+| Health trend charts | Not integrated — chart tab shows a placeholder |
 | AI Brain (`services/brain/`) | Not implemented here — separate branch |
 | Vision Engine full pipeline | `face_recognition_engine.py` exists; full Flask app wiring is in the Vision branch |
 | `run_all.py` launcher | Not in this branch — lives on main |

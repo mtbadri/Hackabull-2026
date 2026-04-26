@@ -14,6 +14,7 @@ import uuid
 import base64
 import logging
 import tempfile
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
@@ -33,16 +34,16 @@ log = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-GEMINI_PARALLEL_CALLS = 5          # parallel votes per match attempt
-CHECK_EVERY_N_FRAMES = 10          # frames between Gemini checks
+GEMINI_PARALLEL_CALLS = 3          # reduced — 3 votes is enough, fewer API calls
+CHECK_EVERY_N_FRAMES = 30          # check less often — every 30 frames (~1s at 30fps)
 COOLDOWN_SECONDS = 60
-CONFIDENCE_THRESHOLD = 0.65        # minimum confidence to accept a match
+CONFIDENCE_THRESHOLD = 0.45        # lenient for webcam/glasses conditions
 KNOWN_FACES_DIR = Path(__file__).parent / "known_faces"
 
 # ── Gemini ────────────────────────────────────────────────────────────────────
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-3-flash-preview")
+model = genai.GenerativeModel("gemini-2.0-flash")
 
 # ── MongoDB ───────────────────────────────────────────────────────────────────
 
@@ -180,7 +181,7 @@ def match_with_gemini(frame_bgr, known_faces: list[dict]) -> dict | None:
     # votes[name] = list of confidence scores where same_person=True
     votes: dict[str, list[float]] = {p["name"]: [] for p in known_faces}
 
-    with ThreadPoolExecutor(max_workers=len(tasks)) as executor:
+    with ThreadPoolExecutor(max_workers=min(len(tasks), 6)) as executor:
         futures = {executor.submit(_verify_one, frame_b64, person): person for person, _ in tasks}
         for future in as_completed(futures):
             person = futures[future]
@@ -310,9 +311,24 @@ def run(video_source=0):
 
     frame_count = 0
     last_label = ("Scanning...", (200, 200, 200))
-    current_match = None      # name of whoever is currently in frame
-    face_absent_frames = 0    # consecutive frames with no face detected
-    ABSENT_THRESHOLD = 10     # frames without a face before we reset
+    current_match = None
+    face_absent_frames = 0
+    ABSENT_THRESHOLD = 10
+
+    # ── Background Gemini state ───────────────────────────────────────────────
+    gemini_running = threading.Event()   # set while a Gemini call is in flight
+    gemini_result: dict = {"profile": None, "done": False}
+
+    def run_gemini_async(frame_snapshot):
+        try:
+            profile = match_with_gemini(frame_snapshot, known_faces)
+            gemini_result["profile"] = profile
+        except Exception as e:
+            log.warning(f"Gemini async error: {e}")
+            gemini_result["profile"] = None
+        finally:
+            gemini_result["done"] = True
+            gemini_running.clear()
 
     while True:
         ret, frame = cap.read()
@@ -321,10 +337,9 @@ def run(video_source=0):
             continue
 
         frame_count += 1
-
-        # ── Detect face presence every frame (cheap, local) ──
         face_present = has_face(frame)
 
+        # ── Face absence reset ────────────────────────────────────────────────
         if not face_present:
             face_absent_frames += 1
             if face_absent_frames >= ABSENT_THRESHOLD and current_match is not None:
@@ -334,14 +349,24 @@ def run(video_source=0):
         else:
             face_absent_frames = 0
 
-        # ── Only call Gemini if a face is present and not already matched ──
+        # ── Kick off Gemini in background (non-blocking) ──────────────────────
         if (face_present
                 and current_match is None
+                and not gemini_running.is_set()
                 and frame_count % CHECK_EVERY_N_FRAMES == 0
                 and known_faces):
 
-            profile = match_with_gemini(frame, known_faces)
+            gemini_result["done"] = False
+            gemini_running.set()
+            frame_snapshot = frame.copy()
+            t = threading.Thread(target=run_gemini_async, args=(frame_snapshot,), daemon=True)
+            t.start()
+            last_label = ("Identifying...", (200, 200, 0))
 
+        # ── Pick up Gemini result when ready ──────────────────────────────────
+        if gemini_result["done"]:
+            gemini_result["done"] = False
+            profile = gemini_result["profile"]
             if profile:
                 name = profile.get("name", "Unknown")
                 current_match = name
@@ -364,4 +389,8 @@ def run(video_source=0):
 
 
 if __name__ == "__main__":
-    run()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--source", type=int, default=0, help="Camera index (default: 0)")
+    args = parser.parse_args()
+    run(args.source)
