@@ -1,1 +1,1 @@
-# AuraGuard Dashboard package
+# Nazr Dashboard package

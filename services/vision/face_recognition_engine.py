@@ -17,6 +17,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+import queue
 import subprocess
 import threading
 import time
@@ -41,8 +42,10 @@ CHECK_EVERY_N_FRAMES = 10          # frames between face-recognition checks
 HEALTH_CHECK_EVERY_N_FRAMES = 30   # frames between health-activity checks (~1s at 30fps)
 COOLDOWN_SECONDS = 10
 HEALTH_CHECK_INTERVAL_SECONDS = 5   # minimum seconds between health scans
+ENABLE_HEALTH_DETECTION: bool = os.getenv("ENABLE_HEALTH_DETECTION", "false").lower() == "true"
 CONFIDENCE_THRESHOLD = 0.65        # minimum confidence to accept a match
 KNOWN_FACES_DIR = Path(__file__).parent / "known_faces"
+DETECTION_PAUSED_FLAG = Path("/Users/mtb/Programming/Hackabull-2026/tempfiles/detection_paused")
 
 # When True, always return the closest person in the DB even if confidence is low.
 # When False, return None (no match) if Gemini isn't confident enough.
@@ -79,6 +82,7 @@ _last_health_event: dict[str, float] = {}
 # ── Background-thread state ───────────────────────────────────────────────────
 
 _lock = threading.Lock()
+_speak_lock = threading.Lock()   # ensures only one TTS plays at a time
 _recognizing = False        # True while a Gemini face-match is in flight
 _pending_profile = False    # False = no result pending; None = "no match" result; dict = matched profile
 _health_running = False     # True while a health-activity call is in flight
@@ -111,7 +115,7 @@ model = genai.GenerativeModel("gemini-3-flash-preview")
 
 def connect_to_mongo():
     uri = os.getenv("MONGODB_URI")
-    db_name = os.getenv("MONGODB_DB", "aura_guard")
+    db_name = os.getenv("MONGODB_DB", "nazr")
     col_name = os.getenv("MONGODB_COLLECTION", "events")
     if not uri:
         raise ValueError("MONGODB_URI not set in .env")
@@ -149,12 +153,12 @@ def is_frame_usable(frame_bgr) -> bool:
     gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
     brightness = gray.mean()
     blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
-    log.info(f"Frame quality — brightness={brightness:.1f}, blur={blur_score:.1f}")
+    log.debug(f"Frame quality — brightness={brightness:.1f}, blur={blur_score:.1f}")
     if brightness < 30:
-        log.info("Frame too dark, skipping")
+        log.warning("Frame too dark, skipping Gemini call")
         return False
     if blur_score < 2:
-        log.info("Frame too blurry, skipping")
+        log.warning("Frame too blurry, skipping Gemini call")
         return False
     return True
 
@@ -304,8 +308,10 @@ def _play_mp3(tmp_path: str):
 
 
 def speak(voice_script: str):
-    # ElevenLabs is reserved for the webapp → glasses audio path (port 8502).
-    # The vision engine plays locally via edge-tts only, so we never double-bill credits.
+    # Drop the call if audio is already playing — prevents startup pileup.
+    if not _speak_lock.acquire(blocking=False):
+        log.info("[Voice skipped — already speaking]")
+        return
     tmp_path = None
     try:
         import asyncio, edge_tts
@@ -326,6 +332,7 @@ def speak(voice_script: str):
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.remove(tmp_path)
+        _speak_lock.release()
 
 # ── Health activity detector ──────────────────────────────────────────────────
 
@@ -434,15 +441,42 @@ def _yield_frames(video_source: str):
                     return
 
 
-# ── Face presence detector ────────────────────────────────────────────────────
+# ── Person presence detector ─────────────────────────────────────────────────
+# Three cascades so we catch faces at any angle AND bodies when the face isn't
+# directly visible (common from a glasses POV camera).
 
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+_cascade_frontal = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+_cascade_profile = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_profileface.xml")
+_cascade_body    = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_upperbody.xml")
 
-def has_face(frame_bgr) -> bool:
-    """Quick local check — lenient settings so we don't miss angled/partial faces."""
-    gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=2, minSize=(30, 30))
-    return len(faces) > 0
+# Cache last result so we only re-run every 3 frames (cheap but not per-frame)
+_person_cache: tuple[int, bool] = (-99, False)   # (last_frame_no, result)
+
+def has_person(frame_bgr, frame_no: int = 0) -> bool:
+    """Return True if a human is likely in frame (face or upper body)."""
+    global _person_cache
+    if frame_no - _person_cache[0] < 3:
+        return _person_cache[1]
+
+    # Downscale to 320px wide for speed
+    h, w = frame_bgr.shape[:2]
+    scale = min(1.0, 320 / w)
+    small = cv2.resize(frame_bgr, (int(w * scale), int(h * scale))) if scale < 1.0 else frame_bgr
+    gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+
+    found = False
+    for cascade, min_sz in (
+        (_cascade_frontal, (25, 25)),
+        (_cascade_profile, (25, 25)),
+        (_cascade_body,    (40, 40)),
+    ):
+        hits = cascade.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=2, minSize=min_sz)
+        if len(hits) > 0:
+            found = True
+            break
+
+    _person_cache = (frame_no, found)
+    return found
 
 # ── Main loop ─────────────────────────────────────────────────────────────────
 
@@ -462,13 +496,11 @@ def run(video_source: str | None = None):
     frame_count = 0
     last_label = ("Scanning...", (200, 200, 200))
     current_match = None
-    last_matched_name = None   # suppresses re-announcing the same person
-    face_absent_frames = 0
-    ABSENT_THRESHOLD = 30
+    last_matched_name = None
     last_match_time = 0.0
     last_health_check_time = 0.0
-    face_first_seen_time: float | None = None  # when face continuously in frame since
-    FACE_DWELL_SECONDS = 3.0  # must be in frame this long before Gemini fires
+    last_gemini_time = 0.0
+    GEMINI_INTERVAL = 4.0   # seconds between recognition attempts when no match is active
 
     global _recognizing, _pending_profile, _health_running
 
@@ -485,28 +517,37 @@ def run(video_source: str | None = None):
         with _lock:
             _health_running = False
 
-    for frame in _yield_frames(video_source):
-        frame_count += 1
+    # ── Low-latency frame reader: always keep only the latest frame ──────────
+    _frame_q: queue.Queue = queue.Queue(maxsize=1)
 
-        # ── Detect face presence every frame (cheap, local) ──
-        face_present = has_face(frame)
+    def _reader():
+        for f in _yield_frames(video_source):
+            if _frame_q.full():
+                try:
+                    _frame_q.get_nowait()
+                except queue.Empty:
+                    pass
+            try:
+                _frame_q.put_nowait(f)
+            except queue.Full:
+                pass
+
+    threading.Thread(target=_reader, daemon=True).start()
+
+    while True:
+        try:
+            frame = _frame_q.get(timeout=5)
+        except queue.Empty:
+            log.warning("No frames received for 5 s — waiting...")
+            continue
+        frame_count += 1
         now = time.time()
 
-        if not face_present:
-            face_absent_frames += 1
-            face_first_seen_time = None  # reset dwell timer when face leaves
-            if face_absent_frames >= ABSENT_THRESHOLD and current_match is not None:
-                log.info("Face left frame — resetting (was: %s)", current_match)
-                current_match = None
-                last_label = ("Scanning...", (200, 200, 200))
-        else:
-            face_absent_frames = 0
-            if face_first_seen_time is None:
-                face_first_seen_time = now  # start dwell timer
-
-        # ── After cooldown, reset current_match so we scan for new people ──
+        # ── Reset match after cooldown so the same person can be re-announced ──
         if current_match is not None and (now - last_match_time) >= COOLDOWN_SECONDS:
+            log.info("Cooldown expired — ready to scan again")
             current_match = None
+            last_matched_name = None   # allow re-announcement of same person
             last_label = ("Scanning...", (200, 200, 200))
 
         # ── Collect result from background Gemini worker if ready ──
@@ -520,7 +561,6 @@ def run(video_source: str | None = None):
             current_match = name
             last_match_time = now
             if name != last_matched_name:
-                # New person — announce and log (off the main loop)
                 last_matched_name = name
                 threading.Thread(
                     target=lambda p=profile: speak(log_event(collection, p)),
@@ -528,51 +568,54 @@ def run(video_source: str | None = None):
                 ).start()
                 last_label = (f"Matched: {name}", (0, 255, 0))
             else:
-                # Same person returned — show label silently
                 last_label = (f"Matched: {name}", (0, 200, 100))
         elif has_result and profile is None and current_match is None:
-            last_matched_name = None
-            last_label = ("No match", (0, 0, 255))
+            last_label = ("Scanning...", (200, 200, 200))
 
-        # ── Fire background face-match if conditions met ──
-        cooldown_elapsed = (now - last_match_time) >= COOLDOWN_SECONDS
-        face_dwelled = face_first_seen_time is not None and (now - face_first_seen_time) >= FACE_DWELL_SECONDS
-        with _lock:
-            should_recognise = (
-                current_match is None
-                and cooldown_elapsed
-                and face_dwelled
-                and not _recognizing
-                and frame_count % CHECK_EVERY_N_FRAMES == 0
-                and known_faces
-            )
+        # ── Fire Gemini on a timer — skipped when detection is paused ────────
+        detection_paused = DETECTION_PAUSED_FLAG.exists()
+        if detection_paused:
+            last_label = ("Manual mode — detection paused", (200, 140, 0))
+        else:
+            cooldown_elapsed = (now - last_match_time) >= COOLDOWN_SECONDS
+            with _lock:
+                should_recognise = (
+                    current_match is None
+                    and cooldown_elapsed
+                    and not _recognizing
+                    and (now - last_gemini_time) >= GEMINI_INTERVAL
+                    and known_faces
+                )
+                if should_recognise:
+                    _recognizing = True
+                    last_gemini_time = now
+
             if should_recognise:
-                _recognizing = True
-
-        if should_recognise:
-            threading.Thread(target=_gemini_worker, args=(frame.copy(),), daemon=True).start()
+                threading.Thread(target=_gemini_worker, args=(frame.copy(),), daemon=True).start()
 
         # ── Fire background health scan every HEALTH_CHECK_INTERVAL_SECONDS ──
-        with _lock:
-            should_health = (
-                not _health_running
-                and (now - last_health_check_time) >= HEALTH_CHECK_INTERVAL_SECONDS
-            )
-            if should_health:
-                _health_running = True
-                last_health_check_time = now
+        if ENABLE_HEALTH_DETECTION:
+            with _lock:
+                should_health = (
+                    not _health_running
+                    and (now - last_health_check_time) >= HEALTH_CHECK_INTERVAL_SECONDS
+                )
+                if should_health:
+                    _health_running = True
+                    last_health_check_time = now
 
-        if should_health:
-            threading.Thread(target=_health_worker, args=(frame.copy(),), daemon=True).start()
+            if should_health:
+                threading.Thread(target=_health_worker, args=(frame.copy(),), daemon=True).start()
 
         cv2.putText(frame, last_label[0], (20, 40),
                     cv2.FONT_HERSHEY_SIMPLEX, 1.0, last_label[1], 2)
-        cv2.imshow("AuraGuard - Face Recognition", frame)
+        cv2.imshow("Nazr - Face Recognition", frame)
 
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
     cv2.destroyAllWindows()
+
     log.info("Stopped.")
 
 

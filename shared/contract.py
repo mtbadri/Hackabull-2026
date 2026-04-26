@@ -1,5 +1,5 @@
 """
-shared/contract.py — Canonical Pydantic models for the AuraGuard AI JSON Contract.
+shared/contract.py — Canonical Pydantic models for the Nazr JSON Contract.
 
 This is the single source of truth for all data models shared across services.
 Never duplicate these definitions in individual service modules.

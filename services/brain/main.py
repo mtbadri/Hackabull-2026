@@ -91,8 +91,8 @@ async def lifespan(app: FastAPI):
 # FastAPI application
 
 app = FastAPI(
-    title="AuraGuard AI Brain",
-    description="Central coordinator for the AuraGuard AI assistive platform.",
+    title="Nazr Brain",
+    description="Central coordinator for the Nazr assistive platform.",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -168,7 +168,7 @@ async def test_voice(request: Request) -> JSONResponse:
     settings = request.app.state.settings
     elevenlabs_client = request.app.state.elevenlabs_client
     script = (
-        f"AuraGuard is online. Hello {settings.PATIENT_NAME}, "
+        f"Nazr is online. Hello {settings.PATIENT_NAME}, "
         "all systems are working correctly."
     )
 

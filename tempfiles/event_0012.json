@@ -1,12 +1,22 @@
 {
-  "event_id": "d09fc637-9fa2-4df9-bfe5-5c7382101b15",
-  "timestamp": "2026-04-26T12:55:03.345003+00:00",
+  "event_id": "2ac0863f-63a3-48f6-8690-8b45a5f47148",
+  "timestamp": "2026-04-26T14:38:31.470578+00:00",
   "patient_id": "patient_001",
-  "type": "health",
-  "subtype": "medicine_taken",
-  "confidence": 0.9,
+  "type": "identity",
+  "subtype": "face_recognized",
+  "confidence": 1.0,
   "metadata": {
-    "detected_item": "Medicine"
+    "person_profile": {
+      "name": "Taikhoom",
+      "relationship": "grandson",
+      "background": "He is a chemical engineering student at USF",
+      "last_conversation": "you were talking about his next camping trip",
+      "shirt_color": "black"
+    }
   },
-  "source": "vision_engine_v1"
+  "source": "vision_engine_v1",
+  "verified": true,
+  "voice_script": "Jhon, your grandson Taikhoom is here. He is a chemical engineering student at USF. Last time you spoke, you were talking about his next camping trip.",
+  "processing_status": "success",
+  "processed_at": "2026-04-26T14:38:31.470615+00:00"
 }

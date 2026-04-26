@@ -1,6 +1,6 @@
 {
-  "event_id": "b8d451d5-459f-4780-ad97-bc3e86926751",
-  "timestamp": "2026-04-26T13:08:14.355944+00:00",
+  "event_id": "3e327965-935a-436b-b503-c7a402acb3cd",
+  "timestamp": "2026-04-26T14:36:14.859797+00:00",
   "patient_id": "patient_001",
   "type": "identity",
   "subtype": "face_recognized",
@@ -8,15 +8,15 @@
   "metadata": {
     "person_profile": {
       "name": "mohammed",
-      "relationship": "dad",
-      "background": "He is a doctor living in NYC",
-      "last_conversation": "you meet his kids",
+      "relationship": "son",
+      "background": "He is a student at USF",
+      "last_conversation": "you were talking about how he has never won a game in basketball",
       "shirt_color": "green"
     }
   },
   "source": "vision_engine_v1",
   "verified": true,
-  "voice_script": "Badri, your dad mohammed is here. He is a doctor living in NYC. Last time you spoke, you meet his kids.",
+  "voice_script": "Jhon, your son mohammed is here. He is a student at USF. Last time you spoke, you were talking about how he has never won a game in basketball.",
   "processing_status": "success",
-  "processed_at": "2026-04-26T13:08:14.355953+00:00"
+  "processed_at": "2026-04-26T14:36:14.859811+00:00"
 }

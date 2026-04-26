@@ -1,22 +1,22 @@
 {
-  "event_id": "797aadc7-7a0f-4152-aa5a-4185d351b2ba",
-  "timestamp": "2026-04-26T13:09:52.247991+00:00",
+  "event_id": "70294e89-04de-4b09-b2a4-aff7b992b746",
+  "timestamp": "2026-04-26T14:36:27.428046+00:00",
   "patient_id": "patient_001",
   "type": "identity",
   "subtype": "face_recognized",
   "confidence": 1.0,
   "metadata": {
     "person_profile": {
-      "name": "mohammed",
-      "relationship": "dad",
-      "background": "He is a doctor living in NYC",
-      "last_conversation": "you meet his kids",
-      "shirt_color": "green"
+      "name": "Ismail",
+      "relationship": "neighbor",
+      "background": "he is a chemical engineer from Intel",
+      "last_conversation": "you were talking about the new Bollywood in theater",
+      "shirt_color": "yellow"
     }
   },
   "source": "vision_engine_v1",
   "verified": true,
-  "voice_script": "Badri, your dad mohammed is here. He is a doctor living in NYC. Last time you spoke, you meet his kids.",
+  "voice_script": "Jhon, your neighbor Ismail is here. he is a chemical engineer from Intel. Last time you spoke, you were talking about the new Bollywood in theater.",
   "processing_status": "success",
-  "processed_at": "2026-04-26T13:09:52.247999+00:00"
+  "processed_at": "2026-04-26T14:36:27.428064+00:00"
 }

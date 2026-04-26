@@ -1,21 +1,22 @@
 {
-  "event_id": "d6fe34d9-97f6-401c-9835-0777ec5fc0d0",
-  "timestamp": "2026-04-26T12:54:31.580108+00:00",
+  "event_id": "9870ae07-44bc-48d9-8bf8-4b5aba5d06f0",
+  "timestamp": "2026-04-26T14:37:27.188073+00:00",
   "patient_id": "patient_001",
   "type": "identity",
   "subtype": "face_recognized",
   "confidence": 1.0,
   "metadata": {
     "person_profile": {
-      "name": "mohammed",
-      "relationship": "dad",
-      "background": "He is a doctor living in NYC",
-      "last_conversation": "you meet his kids"
+      "name": "Taikhoom",
+      "relationship": "grandson",
+      "background": "He is a chemical engineering student at USF",
+      "last_conversation": "you were talking about his next camping trip",
+      "shirt_color": "black"
     }
   },
   "source": "vision_engine_v1",
   "verified": true,
-  "voice_script": "Badri, your dad mohammed is here. He is a doctor living in NYC. Last time you spoke, you meet his kids.",
+  "voice_script": "Jhon, your grandson Taikhoom is here. He is a chemical engineering student at USF. Last time you spoke, you were talking about his next camping trip.",
   "processing_status": "success",
-  "processed_at": "2026-04-26T12:54:31.580122+00:00"
+  "processed_at": "2026-04-26T14:37:27.188093+00:00"
 }

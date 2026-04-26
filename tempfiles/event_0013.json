@@ -1,12 +1,22 @@
 {
-  "event_id": "54ddc44c-c399-4089-9e14-b83b26770195",
-  "timestamp": "2026-04-26T12:56:27.730021+00:00",
+  "event_id": "af5ff93d-c9b7-413d-b15c-8eb5fef09a13",
+  "timestamp": "2026-04-26T14:39:57.955951+00:00",
   "patient_id": "patient_001",
-  "type": "health",
-  "subtype": "drinking",
-  "confidence": 0.9,
+  "type": "identity",
+  "subtype": "face_recognized",
+  "confidence": 1.0,
   "metadata": {
-    "detected_item": "Cup"
+    "person_profile": {
+      "name": "mohammed",
+      "relationship": "son",
+      "background": "He is a student at USF",
+      "last_conversation": "you were talking about how he has never won a game in basketball",
+      "shirt_color": "green"
+    }
   },
-  "source": "vision_engine_v1"
+  "source": "vision_engine_v1",
+  "verified": true,
+  "voice_script": "Jhon, your son mohammed is here. He is a student at USF. Last time you spoke, you were talking about how he has never won a game in basketball.",
+  "processing_status": "success",
+  "processed_at": "2026-04-26T14:39:57.955985+00:00"
 }

@@ -67,8 +67,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="AuraGuard AI Brain",
-    description="Central coordinator for the AuraGuard AI assistive platform.",
+    title="Nazr Brain",
+    description="Central coordinator for the Nazr assistive platform.",
     version="1.0.0",
     lifespan=lifespan,
 )

@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import streamlit as st
 
 # ── Page config must be first Streamlit call ──────────────────────────────────
-st.set_page_config(page_title="AuraGuard Caregiver Portal", layout="wide")
+st.set_page_config(page_title="Nazr Caregiver Portal", layout="wide")
 
 # ── Settings ──────────────────────────────────────────────────────────────────
 from dashboard.settings import get_settings
@@ -98,7 +98,7 @@ with st.sidebar:
             st.success(f"Saved! Vision Engine will detect {name_input.strip()} on next startup.")
 
 # ── Header ────────────────────────────────────────────────────────────────────
-st.title("AuraGuard AI — Caregiver Portal")
+st.title("Nazr — Caregiver Portal")
 st.caption(f"Patient: **{settings.PATIENT_NAME}** · Last refresh: {st.session_state.last_refresh}")
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────

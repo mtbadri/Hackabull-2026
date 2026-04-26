@@ -1,21 +1,22 @@
 {
-  "event_id": "6654b58e-2529-49d6-b840-9d23b9afb81f",
-  "timestamp": "2026-04-26T12:54:48.052362+00:00",
+  "event_id": "845cc57a-233c-485b-8889-4651ec764d7f",
+  "timestamp": "2026-04-26T14:37:39.625255+00:00",
   "patient_id": "patient_001",
   "type": "identity",
   "subtype": "face_recognized",
   "confidence": 1.0,
   "metadata": {
     "person_profile": {
-      "name": "Ismail",
-      "relationship": "son",
-      "background": "He is a software engineer living in Tampa",
-      "last_conversation": "he told you about his new job"
+      "name": "Taikhoom",
+      "relationship": "grandson",
+      "background": "He is a chemical engineering student at USF",
+      "last_conversation": "you were talking about his next camping trip",
+      "shirt_color": "black"
     }
   },
   "source": "vision_engine_v1",
   "verified": true,
-  "voice_script": "Badri, your son Ismail is here. He is a software engineer living in Tampa. Last time you spoke, he told you about his new job.",
+  "voice_script": "Jhon, your grandson Taikhoom is here. He is a chemical engineering student at USF. Last time you spoke, you were talking about his next camping trip.",
   "processing_status": "success",
-  "processed_at": "2026-04-26T12:54:48.052370+00:00"
+  "processed_at": "2026-04-26T14:37:39.625283+00:00"
 }

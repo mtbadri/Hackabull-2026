@@ -1,4 +1,4 @@
-# AuraGuard AI 🧠👓
+# Nazr 🧠👓
 ### *Life-Critical Assistive Platform for Alzheimer's Patients*
 
 > A wearable AI co-pilot that watches, understands, and speaks — so the patient is never truly alone.
@@ -13,7 +13,7 @@ Over 6 million Americans live with Alzheimer's disease, and 16+ million family m
 
 ## Our Solution
 
-AuraGuard AI transforms Meta Smart Glasses into a life-critical safety system. The glasses stream a first-person POV to a laptop running three coordinated services: a **Vision Engine** that detects hazards and familiar faces, an **AI Brain** that reasons about what it sees and speaks empathetically to the patient, and a **Caregiver Portal** that gives families and clinicians a live and longitudinal view of their loved one's day.
+Nazr transforms Meta Smart Glasses into a life-critical safety system. The glasses stream a first-person POV to a laptop running three coordinated services: a **Vision Engine** that detects hazards and familiar faces, an **AI Brain** that reasons about what it sees and speaks empathetically to the patient, and a **Caregiver Portal** that gives families and clinicians a live and longitudinal view of their loved one's day.
 
 ### Core Features
 

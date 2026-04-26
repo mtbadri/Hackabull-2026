@@ -1,22 +1,22 @@
 {
-  "event_id": "766e2ba6-53ea-413f-9e62-03921c30c4d6",
-  "timestamp": "2026-04-26T13:05:37.989508+00:00",
+  "event_id": "938644d8-c980-424a-a9cc-fafea91a6602",
+  "timestamp": "2026-04-26T14:35:18.199452+00:00",
   "patient_id": "patient_001",
   "type": "identity",
   "subtype": "face_recognized",
   "confidence": 1.0,
   "metadata": {
     "person_profile": {
-      "name": "Ismail",
+      "name": "mohammed",
       "relationship": "son",
-      "background": "He is a software engineer living in Tampa",
-      "last_conversation": "he told you about his new job",
-      "shirt_color": "yellow"
+      "background": "He is a student at USF",
+      "last_conversation": "you were talking about how he has never won a game in basketball",
+      "shirt_color": "green"
     }
   },
   "source": "vision_engine_v1",
   "verified": true,
-  "voice_script": "Badri, your son Ismail is here. He is a software engineer living in Tampa. Last time you spoke, he told you about his new job.",
+  "voice_script": "Jhon, your son mohammed is here. He is a student at USF. Last time you spoke, you were talking about how he has never won a game in basketball.",
   "processing_status": "success",
-  "processed_at": "2026-04-26T13:05:37.989518+00:00"
+  "processed_at": "2026-04-26T14:35:18.199466+00:00"
 }

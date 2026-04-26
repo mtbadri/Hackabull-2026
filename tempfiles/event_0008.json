@@ -1,12 +1,22 @@
 {
-  "event_id": "bf6ba940-a580-480e-ab07-0a5f9a294f9f",
-  "timestamp": "2026-04-26T12:53:47.191321+00:00",
+  "event_id": "724450d2-ea6c-46c8-ae5f-b118bdc1edc8",
+  "timestamp": "2026-04-26T14:36:44.793779+00:00",
   "patient_id": "patient_001",
-  "type": "health",
-  "subtype": "drinking",
-  "confidence": 0.9,
+  "type": "identity",
+  "subtype": "face_recognized",
+  "confidence": 1.0,
   "metadata": {
-    "detected_item": "Water Bottle"
+    "person_profile": {
+      "name": "Ismail",
+      "relationship": "neighbor",
+      "background": "he is a chemical engineer from Intel",
+      "last_conversation": "you were talking about the new Bollywood in theater",
+      "shirt_color": "yellow"
+    }
   },
-  "source": "vision_engine_v1"
+  "source": "vision_engine_v1",
+  "verified": true,
+  "voice_script": "Jhon, your neighbor Ismail is here. he is a chemical engineer from Intel. Last time you spoke, you were talking about the new Bollywood in theater.",
+  "processing_status": "success",
+  "processed_at": "2026-04-26T14:36:44.793811+00:00"
 }

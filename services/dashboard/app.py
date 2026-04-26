@@ -1,5 +1,5 @@
 """
-AuraGuard Caregiver Dashboard — Admin + Monitoring
+Nazr Caregiver Dashboard — Admin + Monitoring
 Tabs: Admin | Live Events | Food & Water Log | Health Trends
 """
 
@@ -17,7 +17,7 @@ import certifi
 
 load_dotenv()
 
-st.set_page_config(page_title="AuraGuard Dashboard", layout="wide", page_icon="🧠")
+st.set_page_config(page_title="Nazr Dashboard", layout="wide", page_icon="🧠")
 
 BRAIN_URL = "http://localhost:8000"
 PATIENT_NAME = os.getenv("PATIENT_NAME", "Patient")
@@ -64,7 +64,7 @@ def check_rtsp() -> bool:
 
 # ── Page header ───────────────────────────────────────────────────────────────
 
-st.title(f"🧠 AuraGuard — {PATIENT_NAME}'s Dashboard")
+st.title(f"🧠 Nazr — {PATIENT_NAME}'s Dashboard")
 
 tab_admin, tab_events, tab_food, tab_trends = st.tabs([
     "Admin", "Live Events", "Food & Water Log", "Health Trends"

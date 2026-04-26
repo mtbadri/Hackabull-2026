@@ -1,5 +1,5 @@
 """
-run_all.py — Start the full AuraGuard stack with one command.
+run_all.py — Start the full Nazr stack with one command.
 
 Services started (in order):
   1. mediamtx          — RTMP server (receives stream from SpecBridge iOS app)
@@ -78,7 +78,7 @@ _procs: list[subprocess.Popen] = []
 
 
 def _shutdown(sig=None, frame=None):
-    print("\n[AuraGuard] Shutting down all services...")
+    print("\n[Nazr] Shutting down all services...")
     for p in reversed(_procs):
         if p.poll() is None:
             p.terminate()
@@ -87,7 +87,7 @@ def _shutdown(sig=None, frame=None):
             p.wait(timeout=5)
         except subprocess.TimeoutExpired:
             p.kill()
-    print("[AuraGuard] All services stopped.")
+    print("[Nazr] All services stopped.")
     sys.exit(0)
 
 
@@ -127,7 +127,7 @@ def _kill_existing_mediamtx():
 
 def _check_mediamtx():
     if shutil.which("mediamtx") is None:
-        print("[AuraGuard] ERROR: 'mediamtx' not found in PATH.")
+        print("[Nazr] ERROR: 'mediamtx' not found in PATH.")
         print("  Download from https://github.com/bluenviron/mediamtx/releases")
         print("  and place it in /usr/local/bin or add its directory to PATH.")
         sys.exit(1)
@@ -135,7 +135,7 @@ def _check_mediamtx():
 
 def main():
     print("=" * 60)
-    print("  AuraGuard AI — Starting all services")
+    print("  Nazr — Starting all services")
     print("=" * 60)
 
     _check_mediamtx()
@@ -185,7 +185,7 @@ def main():
         for i, proc in enumerate(_procs):
             if proc.poll() is not None:
                 name = SERVICES[i]["name"]
-                print(f"[AuraGuard] WARNING: {name} exited unexpectedly (code {proc.returncode})")
+                print(f"[Nazr] WARNING: {name} exited unexpectedly (code {proc.returncode})")
         time.sleep(5)
 
 
