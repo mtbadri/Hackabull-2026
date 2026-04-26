@@ -9,7 +9,7 @@
         "--disabledTools", "create_collection,drop_collection,drop_database,rename_collection,create_index,drop_index,insert_many,update_many,delete_many,mongodb_logs,collection_storage_size,db_stats,explain,export_query,search_knowledge,list_knowledge_sources"
       ],
       "env": {
-        "MDB_MCP_CONNECTION_STRING": "mongodb+srv://<user>:<password>@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority"
+        "MDB_MCP_CONNECTION_STRING": "mongodb+srv://keko:africa786@secondbrain.fmdobsv.mongodb.net/?appName=secondbrain"
       },
       "disabled": false,
       "autoApprove": ["find", "aggregate", "count", "listDatabases", "listCollections"]
@@ -18,7 +18,7 @@
       "command": "uvx",
       "args": ["elevenlabs-mcp@latest"],
       "env": {
-        "ELEVENLABS_API_KEY": "<your_elevenlabs_api_key_here>"
+        "ELEVENLABS_API_KEY": "sk_4fdb977bc3ff083111b8156c1c6ec94f5be9adb7ff9c7562"
       },
       "disabled": false,
       "autoApprove": []
