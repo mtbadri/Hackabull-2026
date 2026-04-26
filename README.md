@@ -235,13 +235,21 @@ You should see:
 ```
 INFO:     Started server process
 INFO:     Waiting for application startup.
-INFO:     MongoDB connectivity verified.
-INFO:     AI Brain startup complete.
+WARNING   Pygame mixer initialised with device: MacBook Air Speakers
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000
 ```
 
-If MongoDB is unreachable, you'll see a `WARNING` instead — the Brain still starts in degraded state and will accept events.
+When the Meta Smart Glasses are connected and `GLASSES_AUDIO_DEVICE` matches their device name exactly, the line will read `Pygame mixer initialised with device: Meta Smart Glasses` instead.
+
+If the glasses are not connected or the device name doesn't match, you'll see:
+
+```
+WARNING   Pygame mixer failed to init with device 'Meta Smart Glasses': No such device. — falling back to default
+WARNING   Pygame mixer initialised with default audio device (fallback)
+```
+
+If MongoDB is unreachable at startup, you'll see an additional `WARNING` — the Brain still starts in degraded state and will accept events.
 
 ### 4. Verify It's Running
 

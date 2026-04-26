@@ -36,7 +36,11 @@ class Settings(BaseSettings):
     PATIENT_ID: str
     GLASSES_AUDIO_DEVICE: str
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",  # other services' vars (Snowflake, ports, etc.) live in the same .env
+    )
 
 
 @functools.lru_cache(maxsize=1)

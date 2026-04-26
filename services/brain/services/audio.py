@@ -20,16 +20,24 @@ logger = logging.getLogger(__name__)
 def init_pygame(device: str) -> None:
     """Initialise the Pygame mixer targeting the given audio device.
 
+    Quits any existing mixer instance first so that pre_init device
+    selection is never silently ignored (e.g. when the module was already
+    imported by a reloader parent process).
+
     Attempts to pre-init with the target device name. If that fails,
     falls back to the default system audio device and logs a warning.
     If the fallback also fails, logs an error and returns without raising.
 
     Requirements: 5.2, 5.3, 5.4
     """
+    # Ensure a clean slate — pre_init is a no-op if mixer is already running.
+    if pygame.mixer.get_init():
+        pygame.mixer.quit()
+
     try:
         pygame.mixer.pre_init(devicename=device)
         pygame.mixer.init()
-        logger.info("Pygame mixer initialised with device: %s", device)
+        logger.warning("Pygame mixer initialised with device: %s", device)
     except Exception as exc:
         logger.warning(
             "Pygame mixer failed to init with device '%s': %s — falling back to default",
@@ -37,6 +45,7 @@ def init_pygame(device: str) -> None:
             exc,
         )
         try:
+            pygame.mixer.pre_init()  # reset device name so fallback uses system default
             pygame.mixer.init()
             logger.warning("Pygame mixer initialised with default audio device (fallback)")
         except Exception as fallback_exc:
