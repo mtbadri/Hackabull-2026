@@ -1,0 +1,13 @@
+{
+  "name": "Verify Vision Engine Event Contract",
+  "version": "1.0.0",
+  "description": "After editing Vision Engine event builder or dispatcher, verifies that constructed Events conform to the JSON Contract and that the dispatcher absorbs non-200 responses without crashing",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["services/vision/event_builder.py", "services/vision/dispatcher.py"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A Vision Engine file was just saved. Read the edited file and verify these properties:\n1. event_builder.py: Every constructed Event payload includes all required JSON Contract fields — event_id (UUID v4), timestamp (ISO 8601 UTC), patient_id (from env var), type, subtype, confidence (float 0.0–1.0), image_b64, metadata, and source='vision_engine_v1'. Identity events must include metadata.person_profile; health events must include metadata.detected_item.\n2. dispatcher.py: The POST to Brain is wrapped in a try/except that absorbs network errors and non-200 responses — the Vision Engine must never crash due to a Brain failure. The timeout must be 30 seconds. On failure, the event_id must be logged.\nIf any of these properties are violated, describe exactly what is wrong and where."
+  }
+}

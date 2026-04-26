@@ -39,7 +39,7 @@ Because this system operates in a life-critical context for a vulnerable populat
 - **Confidence**: A float in the range [0.0, 1.0] representing the Vision_Engine's certainty about a detected event.
 - **Known_Faces_Directory**: A local directory containing reference images of people familiar to the Patient, each paired with a Person_Profile JSON file, used by the Vision_Engine for face recognition.
 - **Voice_Script**: The natural-language string passed to ElevenLabs for synthesis. Personalized with the Patient's name and contextually appropriate content.
-- **Audio_File**: The MP3 file saved locally by the Brain after ElevenLabs synthesis, played through the Meta_Smart_Glasses speaker via Pygame.
+- **Audio_File**: The in-memory audio buffer produced by the Brain from the ElevenLabs streaming response, played directly through the Meta_Smart_Glasses speaker via Pygame without writing to disk.
 - **Glasses_Audio_Device**: The system audio output device name corresponding to the Meta_Smart_Glasses speaker, configured via the `GLASSES_AUDIO_DEVICE` environment variable.
 - **Severity_Color**: The color code used by the Caregiver_Portal to visually distinguish event types: yellow for `health`, green for `identity`.
 - **run_all.py**: The Python launcher script that starts all three services simultaneously on a single laptop.
@@ -99,9 +99,9 @@ Because this system operates in a life-critical context for a vulnerable populat
 
 #### Acceptance Criteria
 
-1. WHEN a non-empty Voice_Script is available after contextual logic, THE Brain SHALL call the ElevenLabs API with the Voice_Script and the configured `ELEVENLABS_VOICE_ID`.
-2. THE Brain SHALL save the synthesized audio as an MP3 file to a local temporary directory before playback.
-3. THE Brain SHALL name each Audio_File using the `event_id` to ensure uniqueness (e.g., `audio/{event_id}.mp3`).
+1. WHEN a non-empty Voice_Script is available after contextual logic, THE Brain SHALL call the ElevenLabs API using the `eleven_flash_v2_5` streaming model with the Voice_Script and the configured `ELEVENLABS_VOICE_ID`.
+2. THE Brain SHALL stream audio chunks from ElevenLabs directly into an in-memory buffer and play them via Pygame without writing any file to disk.
+3. THE Brain SHALL begin audio playback within 15 seconds of initiating the ElevenLabs call; IF the stream does not produce the first audio chunk within 15 seconds, THEN THE Brain SHALL treat it as a failure per criterion 4.
 4. IF the ElevenLabs API call fails or returns an error, THEN THE Brain SHALL log the error and continue processing the Event without audio playback.
 5. THE Brain SHALL complete the ElevenLabs API call within 15 seconds; IF the call exceeds 15 seconds, THEN THE Brain SHALL treat it as a failure per criterion 4.
 
@@ -113,13 +113,12 @@ Because this system operates in a life-critical context for a vulnerable populat
 
 #### Acceptance Criteria
 
-1. WHEN an Audio_File has been successfully saved, THE Brain SHALL route audio playback to the Meta_Smart_Glasses speaker by selecting it as the target audio output device.
+1. WHEN an Audio_File buffer has been successfully populated from the ElevenLabs stream, THE Brain SHALL route audio playback to the Meta_Smart_Glasses speaker by selecting it as the target audio output device.
 2. THE Brain SHALL identify the Meta_Smart_Glasses speaker by matching the audio output device name against the value configured in the `GLASSES_AUDIO_DEVICE` environment variable.
-3. THE Brain SHALL use Pygame mixer initialized with the target device to play the Audio_File through the glasses speaker.
+3. THE Brain SHALL use Pygame mixer initialized with the target device to play the in-memory audio buffer through the glasses speaker.
 4. IF the Meta_Smart_Glasses speaker device cannot be found or selected at playback time, THEN THE Brain SHALL fall back to the default system audio output, log a warning identifying the fallback, and proceed with playback.
 5. THE Brain SHALL block until audio playback is complete before returning the HTTP response to the Vision_Engine.
-6. IF Pygame fails to initialize or fails to play the Audio_File on either the glasses speaker or the fallback device, THEN THE Brain SHALL log the error and continue processing the Event without audio playback.
-7. THE Brain SHALL delete the Audio_File from the local temporary directory after playback completes successfully.
+6. IF Pygame fails to initialize or fails to play the audio buffer on either the glasses speaker or the fallback device, THEN THE Brain SHALL log the error and continue processing the Event without audio playback.
 
 ---
 

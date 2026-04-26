@@ -1,0 +1,13 @@
+{
+  "name": "Guard image_b64 Exclusion from EventRecord",
+  "version": "1.0.0",
+  "description": "After any write to shared/contract.py or services/brain/models.py, verifies that EventRecord does not include an image_b64 field",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["shared/contract.py", "services/brain/models.py"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A critical data model file was just saved. Read shared/contract.py and verify that the EventRecord model does NOT contain an image_b64 field. This is a hard requirement — image_b64 must be excluded from EventRecord at the model level to prevent it from ever being stored in MongoDB. If image_b64 is present in EventRecord, flag it immediately and explain that it must be removed. If it is correctly absent, confirm the check passed."
+  }
+}
