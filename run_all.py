@@ -23,6 +23,16 @@ import socket
 import subprocess
 import sys
 import time
+from pathlib import Path
+
+# Always use the venv Python so all dependencies are available,
+# regardless of which Python launched this script.
+_VENV_PYTHON = Path(__file__).parent / ".venv" / "bin" / "python"
+if not _VENV_PYTHON.exists():
+    print(f"ERROR: venv not found at {_VENV_PYTHON}")
+    print("  Run: python -m venv .venv && .venv/bin/pip install -r requirements.txt")
+    sys.exit(1)
+PYTHON = str(_VENV_PYTHON)
 
 SERVICES = [
     {
@@ -34,7 +44,7 @@ SERVICES = [
     {
         "name": "AI Brain",
         "cmd": [
-            sys.executable, "-m", "uvicorn",
+            PYTHON, "-m", "uvicorn",
             "services.brain.main:app",
             "--host", "0.0.0.0",
             "--port", "8000",
@@ -45,14 +55,14 @@ SERVICES = [
     },
     {
         "name": "Vision Engine",
-        "cmd": [sys.executable, "-m", "services.vision.face_recognition_engine"],
+        "cmd": [PYTHON, "-m", "services.vision.face_recognition_engine"],
         "delay": 1.0,
         "note": "Vision Engine reading RTMP stream",
     },
     {
         "name": "Dashboard",
         "cmd": [
-            sys.executable, "-m", "streamlit", "run",
+            PYTHON, "-m", "streamlit", "run",
             "dashboard/app.py",
             "--server.port", "8501",
             "--server.headless", "true",
@@ -63,7 +73,7 @@ SERVICES = [
     {
         "name": "Event Audio",
         "cmd": [
-            sys.executable, "-m", "uvicorn",
+            PYTHON, "-m", "uvicorn",
             "services.webapp.app:app",
             "--host", "0.0.0.0",
             "--port", "8502",
@@ -146,7 +156,8 @@ def main():
 
     for svc in SERVICES:
         name = svc["name"]
-        cmd = svc["cmd"]
+        cmd  = svc["cmd"]
+
         print(f"\n[{name}] Starting...")
         try:
             proc = subprocess.Popen(cmd)

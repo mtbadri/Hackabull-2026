@@ -1,14 +1,12 @@
 """
 Face Recognition Engine (YuNet + SFace)
 -----------------------------------------
-1. Loads known-face embeddings from MongoDB Atlas (known_faces collection)
-   and falls back to local known_faces/*.jpg files if Atlas has no entries.
-2. Uploads reference images to Atlas on first enrollment.
-3. Every RECOGNITION_INTERVAL seconds, grabs the latest frame and runs
+1. Loads known-face embeddings from local known_faces/*.jpg + *.json files.
+2. Every RECOGNITION_INTERVAL seconds, grabs the latest frame and runs
    YuNet face detection + SFace embedding comparison locally (no API calls).
-4. On a match, logs the event (with the captured frame as base64) to Atlas,
-   speaks via edge-tts / ElevenLabs, and POSTs to the Brain service.
-5. Health activity detection is kept but still uses Gemini (optional, off by default).
+3. On a match, logs the event (with the captured frame as base64) to a local
+   JSONL file, speaks via edge-tts / ElevenLabs, and POSTs to the Brain service.
+4. Health activity detection is kept but still uses Gemini (optional, off by default).
 """
 
 import os
@@ -26,10 +24,8 @@ import threading
 import time
 import av
 import cv2
-import certifi
 import numpy as np
 import requests as http_requests
-from pymongo import MongoClient
 from dotenv import load_dotenv
 import pygame
 
@@ -46,6 +42,7 @@ _MODELS_DIR = _ROOT.parent.parent / "tests" / "vision" / "models"
 YUNET_MODEL  = _MODELS_DIR / "face_detection_yunet_2023mar.onnx"
 SFACE_MODEL  = _MODELS_DIR / "face_recognition_sface_2021dec.onnx"
 _EVENT_LOG_DIR = Path(__file__).parent.parent.parent / "tempfiles"
+EVENTS_JSONL   = _EVENT_LOG_DIR / "events.jsonl"   # local event store
 DETECTION_PAUSED_FLAG = _EVENT_LOG_DIR / "detection_paused"
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -133,75 +130,47 @@ def _get_face_feature(img_bgr: np.ndarray) -> np.ndarray | None:
     return _recognizer.feature(aligned)
 
 
-# ── MongoDB Atlas ─────────────────────────────────────────────────────────────
+# ── Local event store ─────────────────────────────────────────────────────────
 
-def connect_to_mongo():
-    uri = os.getenv("MONGODB_URI")
-    db_name  = os.getenv("MONGODB_DB", "auraguard")
-    col_name = os.getenv("MONGODB_COLLECTION", "events")
-    if not uri:
-        raise ValueError("MONGODB_URI not set in .env")
-    client = MongoClient(uri, tlsCAFile=certifi.where())
-    log.info("Connected to MongoDB Atlas: %s.%s", db_name, col_name)
-    return client[db_name][col_name], client[db_name]
+_write_lock = threading.Lock()
 
-
-def _upload_reference_image(db, name: str, img_bgr: np.ndarray, profile: dict) -> None:
-    """Store a reference face image + profile in the known_faces collection."""
-    _, buf = cv2.imencode(".jpg", img_bgr)
-    image_b64 = base64.b64encode(buf).decode("utf-8")
-    doc = {
-        "name": name,
-        "profile": profile,
-        "image_b64": image_b64,
-        "uploaded_at": datetime.now(timezone.utc).isoformat(),
-    }
-    db["known_faces"].update_one({"name": name}, {"$set": doc}, upsert=True)
-    log.info("Uploaded reference image for %s to Atlas", name)
+def _append_event(event: dict) -> None:
+    """Append one event as a JSON line to the local events.jsonl store."""
+    _EVENT_LOG_DIR.mkdir(exist_ok=True)
+    payload = {k: v for k, v in event.items() if k != "_id"}
+    with _write_lock:
+        with EVENTS_JSONL.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(payload) + "\n")
 
 
-# ── Known-face loader ─────────────────────────────────────────────────────────
+def read_events(n: int = 50) -> list[dict]:
+    """Read the most recent n events from the local JSONL store."""
+    if not EVENTS_JSONL.exists():
+        return []
+    lines = EVENTS_JSONL.read_text(encoding="utf-8").splitlines()
+    events = []
+    for line in reversed(lines):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            events.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+        if len(events) >= n:
+            break
+    return events
 
-def load_known_faces(db=None) -> list[dict]:
+
+# ── Known-face loader (local files only) ──────────────────────────────────────
+
+def load_known_faces() -> list[dict]:
     """
-    Returns a list of:
-        {"name": str, "profile": dict, "feature": np.ndarray}
-
-    Priority:
-      1. MongoDB Atlas known_faces collection (if db provided and has entries)
-      2. Local known_faces/*.jpg + *.json files
+    Load known faces from local known_faces/*.jpg + *.json files.
+    Returns a list of {"name": str, "profile": dict, "feature": np.ndarray}.
     """
     known: list[dict] = []
 
-    # ── Try Atlas first ───────────────────────────────────────────────────────
-    if db is not None:
-        atlas_docs = list(db["known_faces"].find({}))
-        for doc in atlas_docs:
-            name    = doc.get("name", "unknown")
-            profile = doc.get("profile", {})
-            img_b64 = doc.get("image_b64", "")
-            if not img_b64:
-                log.warning("Atlas doc for %s has no image, skipping", name)
-                continue
-            img_bytes = base64.b64decode(img_b64)
-            arr = np.frombuffer(img_bytes, dtype=np.uint8)
-            img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-            if img is None:
-                log.warning("Could not decode Atlas image for %s", name)
-                continue
-            feature = _get_face_feature(img)
-            if feature is None:
-                log.warning("No face detected in Atlas image for %s", name)
-                continue
-            known.append({"name": name, "profile": profile, "feature": feature})
-            log.info("Loaded %s from Atlas", name)
-
-        if known:
-            log.info("Loaded %d known faces from Atlas", len(known))
-            return known
-        log.info("No known faces in Atlas — falling back to local files")
-
-    # ── Fall back to local files ──────────────────────────────────────────────
     if not KNOWN_FACES_DIR.exists():
         log.warning("Known faces directory not found: %s", KNOWN_FACES_DIR)
         return known
@@ -227,16 +196,9 @@ def load_known_faces(db=None) -> list[dict]:
             continue
 
         known.append({"name": name, "profile": profile, "feature": feature})
-        log.info("Loaded %s from local file", name)
+        log.info("Loaded %s", name)
 
-        # Upload to Atlas so future runs use the cloud copy
-        if db is not None:
-            try:
-                _upload_reference_image(db, name, img, profile)
-            except Exception as e:
-                log.warning("Could not upload %s to Atlas: %s", name, e)
-
-    log.info("Loaded %d known faces from local files", len(known))
+    log.info("Loaded %d known faces", len(known))
     return known
 
 
@@ -331,12 +293,12 @@ def save_event_json(event: dict) -> None:
         pass
 
 
-# ── MongoDB event logger ──────────────────────────────────────────────────────
+# ── Local event logger ────────────────────────────────────────────────────────
 
-def log_event(collection, profile: dict, frame_bgr: np.ndarray | None = None) -> str:
+def log_event(profile: dict, frame_bgr: np.ndarray | None = None) -> str:
     """
-    Insert an identity event into MongoDB Atlas.
-    The captured frame is stored as base64 inside the document.
+    Append an identity event to the local JSONL store.
+    The captured frame is stored as base64 inside the event.
     """
     voice_script = build_voice_script(profile)
 
@@ -352,7 +314,7 @@ def log_event(collection, profile: dict, frame_bgr: np.ndarray | None = None) ->
         "type":              "identity",
         "subtype":           "face_recognized",
         "confidence":        1.0,
-        "image_b64":         image_b64,          # frame stored in Atlas
+        "image_b64":         image_b64,
         "metadata":          {"person_profile": profile},
         "source":            "vision_engine_v2",
         "verified":          True,
@@ -360,7 +322,7 @@ def log_event(collection, profile: dict, frame_bgr: np.ndarray | None = None) ->
         "processing_status": "success",
         "processed_at":      datetime.now(timezone.utc).isoformat(),
     }
-    collection.insert_one(event)
+    _append_event(event)
     save_event_json(event)
     log.info("Event logged for: %s", profile.get("name"))
     return voice_script
@@ -499,10 +461,10 @@ def _yield_frames(video_source: str):
                 log.info("Stream connected.")
                 for av_frame in container.decode(video=0):
                     yield av_frame.to_ndarray(format="bgr24")
-                log.info("Stream ended — reconnecting in 3 s…")
+                log.info("Stream ended — reconnecting in 5 s…")
             except Exception as e:
-                log.warning("Stream error: %s — reconnecting in 3 s…", e)
-            time.sleep(3)
+                log.warning("Stream error: %s — reconnecting in 5 s…", e)
+            time.sleep(5)
     else:
         cap = cv2.VideoCapture(video_source)
         if not cap.isOpened():
@@ -558,8 +520,7 @@ def has_person(frame_bgr: np.ndarray, frame_no: int = 0) -> bool:
 # ── Main loop ─────────────────────────────────────────────────────────────────
 
 def run(video_source: str | None = None):
-    collection, db = connect_to_mongo()
-    known_faces = load_known_faces(db=db)
+    known_faces = load_known_faces()
 
     if not known_faces:
         log.warning("No known faces loaded — add <name>.jpg + <name>.json to known_faces/")
@@ -643,7 +604,7 @@ def run(video_source: str | None = None):
                 frame_snapshot = frame.copy()
                 threading.Thread(
                     target=lambda p=profile, f=frame_snapshot: speak(
-                        log_event(collection, p, f)
+                        log_event(p, f)
                     ),
                     daemon=True,
                 ).start()

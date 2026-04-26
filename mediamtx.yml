@@ -1,6 +1,33 @@
-# mediamtx configuration for AuraGuard
-# Allows SpecBridge to publish on rtmp://<host>:1935/live/stream
+# mediamtx configuration for Nazr
+# Publishes: rtmp://<host>:1935/live/stream  (from SpecBridge iOS app)
+# Viewers:
+#   HLS     → http://localhost:8888/live/stream/index.m3u8  (any browser)
+#   WebRTC  → http://localhost:8889/live/stream             (any browser)
+#   RTMP    → rtmp://localhost:1935/live/stream             (VLC / ffplay)
 
+# ── RTMP (publish source) ─────────────────────────────────────────────────────
+rtmp: yes
+rtmpAddress: :1935
+
+# ── HLS (browser playback) ────────────────────────────────────────────────────
+hls: yes
+hlsAddress: :8888
+hlsAlwaysRemux: yes          # generate HLS even when no viewer is connected
+hlsSegmentDuration: 1s       # low-latency: 1-second segments
+hlsPartDuration: 200ms       # low-latency HLS part duration
+hlsSegmentMaxSize: 50MB
+
+# ── WebRTC (sub-second browser playback) ─────────────────────────────────────
+webrtc: yes
+webrtcAddress: :8889
+
+# ── SRT (optional, keep enabled for compatibility) ────────────────────────────
+srt: yes
+srtAddress: :8890
+
+# ── Paths ─────────────────────────────────────────────────────────────────────
 paths:
-  live/stream:
-    # empty = use defaults (publish + read allowed, no auth)
+  "live/stream":
+    # Accept any combination of audio+video tracks from the publisher.
+    # Without this, mediamtx drops connections that send audio before
+    # the track is negotiated (common with iOS RTMP apps).

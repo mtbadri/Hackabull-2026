@@ -41,8 +41,8 @@ async def lifespan(app: FastAPI):
     # 1. Load settings
     settings = get_settings()
 
-    # 2. Initialise Motor MongoDB client
-    motor_client = init_motor(settings.MONGODB_URI)
+    # 2. Initialise local event store client
+    motor_client = init_motor("")
 
     # 3. Verify MongoDB connectivity (degraded start allowed)
     try:
@@ -138,23 +138,18 @@ app.include_router(health_router)
 @app.get("/status")
 async def service_status(request: Request) -> JSONResponse:
     """Detailed health status for the admin dashboard."""
-    from services.brain.services.mongodb import verify_mongodb
-    settings = request.app.state.settings
+    from services.brain.services.mongodb import verify_mongodb, _count_local_events
     motor_client = request.app.state.motor_client
 
     mongo_ok = await verify_mongodb(motor_client)
-
-    try:
-        event_count = await motor_client[settings.MONGODB_DB][settings.MONGODB_COLLECTION].count_documents({})
-    except Exception:
-        event_count = -1
+    event_count = _count_local_events()
 
     return JSONResponse({
         "status": "ok",
-        "mongodb": "connected" if mongo_ok else "disconnected",
+        "storage": "local",
         "event_count": event_count,
-        "patient_name": settings.PATIENT_NAME,
-        "patient_id": settings.PATIENT_ID,
+        "patient_name": request.app.state.settings.PATIENT_NAME,
+        "patient_id": request.app.state.settings.PATIENT_ID,
     })
 
 

@@ -11,9 +11,6 @@ _ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
 
 
 class DashboardSettings(BaseSettings):
-    MONGODB_URI: str
-    MONGODB_DB: str
-    MONGODB_COLLECTION: str
     PATIENT_NAME: str
 
     model_config = SettingsConfigDict(env_file=str(_ENV_FILE), env_file_encoding="utf-8", extra="ignore")

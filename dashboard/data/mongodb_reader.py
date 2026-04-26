@@ -1,33 +1,48 @@
+"""
+dashboard/data/mongodb_reader.py — Local JSONL event reader.
+
+Reads events from tempfiles/events.jsonl instead of MongoDB Atlas.
+The function signature is unchanged so dashboard/app.py needs no edits.
+"""
+import json
 import logging
-import certifi
-from pymongo import MongoClient
-from dashboard.settings import get_settings
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+_EVENTS_FILE = Path(__file__).resolve().parents[2] / "tempfiles" / "events.jsonl"
 _cached_data: list[dict] = []
 
 
-def get_mongo_client():
-    settings = get_settings()
-    client = MongoClient(settings.MONGODB_URI, tlsCAFile=certifi.where(), serverSelectionTimeoutMS=5000)
-    return client
-
-
 def fetch_latest_events(n: int = 50) -> tuple[list[dict], bool]:
+    """Read the most recent n events from the local JSONL store."""
     global _cached_data
-    settings = get_settings()
     try:
-        client = get_mongo_client()
-        # Force a real connection attempt
-        client.admin.command("ping")
-        collection = client[settings.MONGODB_DB][settings.MONGODB_COLLECTION]
-        docs = list(
-            collection.find({}, {"_id": 0})
-            .sort("processed_at", -1)
-            .limit(n)
-        )
-        _cached_data = docs
-        return (docs, False)
+        if not _EVENTS_FILE.exists():
+            return ([], False)
+
+        lines = _EVENTS_FILE.read_text(encoding="utf-8").splitlines()
+        events: list[dict] = []
+        for line in reversed(lines):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                events.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+            if len(events) >= n:
+                break
+
+        _cached_data = events
+        return (events, False)
     except Exception as e:
-        logger.error("MongoDB fetch failed: %s", e)
+        logger.error("Local event read failed: %s", e)
         return (_cached_data, True)
+
+
+def get_mongo_client():
+    """Compatibility shim — MongoDB replaced by local JSONL store."""
+    raise RuntimeError(
+        "MongoDB is not used. Read events via fetch_latest_events() instead."
+    )
