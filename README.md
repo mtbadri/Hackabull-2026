@@ -1,202 +1,301 @@
-# AuraGuard AI 🧠👓
-### *Life-Critical Assistive Platform for Alzheimer's Patients*
+# AuraGuard AI — Caregiver Dashboard Branch
 
-> A wearable AI co-pilot that watches, understands, and speaks — so the patient is never truly alone.
+> **Branch focus:** `services/dashboard/` — the Streamlit Caregiver Portal (port 8501)
 
-**Hackabull VII — Tech For Good | Health Care & Wellness**
-
----
-
-## The Problem
-
-Over 6 million Americans live with Alzheimer's disease, and 16+ million family members provide unpaid care. Patients face daily life-threatening risks — leaving the stove on, not recognizing family members, forgetting to hydrate or take medication. Caregivers cannot be present 24/7.
-
-## Our Solution
-
-AuraGuard AI transforms Meta Smart Glasses into a life-critical safety system. The glasses stream a first-person POV to a laptop running three coordinated services: a **Vision Engine** that detects hazards and familiar faces, an **AI Brain** that reasons about what it sees and speaks empathetically to the patient, and a **Caregiver Portal** that gives families and clinicians a live and longitudinal view of their loved one's day.
-
-### Core Features
-
-- **Face Recognition** — identifies familiar people and tells the patient who they are, how they know them, and what they last talked about
-- **Health Item Detection** — detects eating, drinking, and medication intake using Google Gemini multimodal AI
-- **Empathetic Voice Alerts** — synthesizes personalized, calming speech via ElevenLabs and plays it through the glasses speaker
-- **Real-Time Caregiver Dashboard** — live event feed from MongoDB Atlas with color-coded health and identity events
-- **Longitudinal Health Trends** — time-series charts from Snowflake so caregivers can share meaningful data with clinicians
-- **Graceful Degradation** — each service continues operating independently if another fails
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Wearable Hardware | Meta Smart Glasses (POV stream via scrcpy/ADB) |
-| Vision Engine | Python, OpenCV, `face_recognition`, Flask |
-| AI Reasoning | Google Gemini (multimodal) |
-| Voice Synthesis | ElevenLabs |
-| Audio Playback | Pygame |
-| AI Brain API | FastAPI, Uvicorn, Pydantic |
-| Live Database | MongoDB Atlas + Motor (async driver) |
-| Data Warehouse | Snowflake |
-| Caregiver Dashboard | Streamlit, Plotly, Pandas |
+This document covers how the dashboard works, how to demo it standalone, and how it fits into the broader AuraGuard AI system.
 
 ---
 
-## Demo
+## What This Branch Delivers
 
-> 📹 **[Watch the Demo Video](#)** — walks through face recognition, health detection, voice alerts, and the caregiver dashboard in real time.
+This branch implements the **Caregiver Portal** — a Streamlit web app that gives family members and clinicians a live, auto-refreshing window into the patient's day. It is one of three coordinated services in AuraGuard AI.
 
-*(Link will be updated after submission)*
+The dashboard does three things:
 
-### How to Run the Demo
+1. **Live Event Feed** — polls MongoDB Atlas every 5 seconds and displays the 50 most recent events in a color-coded table (yellow = health, green = identity)
+2. **Health Trends Chart** — renders a Plotly time-series chart of health event frequency (Snowflake-backed; shows a placeholder when Snowflake is unavailable)
+3. **Family Sync Sidebar** — lets caregivers upload a photo and profile for a new person so the Vision Engine will recognize them on next startup
 
-#### Prerequisites
+---
+
+## File Structure
+
+```
+services/dashboard/
+├── app.py                        # Streamlit entry point — layout, refresh loop, sidebar
+├── settings.py                   # Pydantic-settings config — loads all env vars from .env
+├── data/
+│   ├── __init__.py
+│   ├── mongodb_reader.py         # get_mongo_client(), fetch_latest_events()
+│   └── snowflake_reader.py       # fetch_health_trends() — stub returning (None, True)
+└── components/
+    ├── __init__.py
+    ├── event_feed.py             # render_event_feed() — DataFrame + color coding
+    └── health_charts.py          # render_health_chart() — Plotly line chart
+```
+
+---
+
+## How the Code Works
+
+### `settings.py` — Configuration
+
+`DashboardSettings` is a `pydantic-settings` `BaseSettings` model. It reads every required variable from `.env` at startup. If any variable is missing, `get_settings()` logs the error and calls `sys.exit(1)` — the app will not start with incomplete config.
+
+```python
+class DashboardSettings(BaseSettings):
+    MONGODB_URI: str
+    MONGODB_DB: str
+    MONGODB_COLLECTION: str
+    SNOWFLAKE_ACCOUNT: str   # required by settings even if Snowflake is stubbed
+    ...
+    PATIENT_NAME: str
+```
+
+### `data/mongodb_reader.py` — Live Event Data
+
+`fetch_latest_events(n=50)` opens a `pymongo` connection to MongoDB Atlas (TLS-verified via `certifi`), queries the configured collection sorted by `processed_at` descending, and returns `(list[dict], False)` on success.
+
+On any exception — network failure, auth error, timeout — it returns `(_cached_data, True)`. The module-level `_cached_data` list holds the last successful result, so the dashboard never shows a blank table just because MongoDB had a hiccup.
+
+```python
+def fetch_latest_events(n: int = 50) -> tuple[list[dict], bool]:
+    try:
+        ...
+        return (docs, False)   # (data, mongo_error=False)
+    except Exception:
+        return (_cached_data, True)  # (stale data, mongo_error=True)
+```
+
+### `data/snowflake_reader.py` — Health Trends (Stubbed)
+
+Snowflake integration is intentionally stubbed on this branch. `fetch_health_trends()` immediately returns `(None, True)`, which tells the chart component to show the "unavailable" placeholder. The full implementation lives in the Snowflake branch.
+
+### `components/event_feed.py` — Live Feed Table
+
+`render_event_feed(events, mongo_error)` builds a pandas DataFrame from the raw event dicts, selects the seven display columns, and applies row-level background color via `df.style.apply()`:
+
+| Event type | Row color |
+|---|---|
+| `health` | Yellow `#fff9c4` |
+| `identity` | Green `#c8e6c9` |
+
+If `mongo_error` is `True`, a `st.warning` banner appears above the table. If the events list is empty, an info message is shown instead of an empty table.
+
+### `components/health_charts.py` — Plotly Chart
+
+`render_health_chart(df, snowflake_error)` renders a `px.line` chart from a DataFrame with `hour` and `count` columns. When `snowflake_error` is `True` (which is always the case on this branch), it shows `st.info("Snowflake unavailable — chart not available")` and renders an empty titled chart as a placeholder so the tab layout stays intact.
+
+### `app.py` — Main App
+
+The entry point wires everything together. Execution order matters in Streamlit, so the file is structured carefully:
+
+1. `st.set_page_config(...)` — must be the very first Streamlit call
+2. `get_settings()` — fails fast if env vars are missing
+3. Session state initialization — sets defaults for `events`, `mongo_error`, `health_df`, `snowflake_error`, `last_refresh`
+4. Data fetch — calls `fetch_latest_events()` and `fetch_health_trends()` on every rerun, storing results in `st.session_state`
+5. Sidebar — Family Sync form (see below)
+6. Header — patient name + last refresh timestamp
+7. Tabs — `Live Feed` and `Health Trends`
+8. `time.sleep(5)` + `st.rerun()` — drives the 5-second auto-refresh loop
+
+#### Family Sync Sidebar
+
+The sidebar lets a caregiver register a new person for the Vision Engine without touching the filesystem manually. On save:
+
+- The uploaded image is written to `services/vision/known_faces/{name_slug}.jpg`
+- A JSON profile is written to `services/vision/known_faces/{name_slug}.json`
+
+The Vision Engine loads known faces at startup, so the new person will be recognized the next time the Vision Engine restarts.
+
+#### Auto-Refresh
+
+```python
+time.sleep(5)
+st.rerun()
+```
+
+Streamlit re-executes the entire script on `st.rerun()`. Because data fetches happen at the top of the script (not inside the tabs), every refresh cycle re-queries MongoDB and updates `st.session_state` before rendering. The 5-second sleep keeps the polling rate reasonable without hammering the database.
+
+---
+
+## How to Demo This Branch Standalone
+
+You can run the dashboard without the Vision Engine or AI Brain — you just need a MongoDB Atlas connection with some event documents in it.
+
+### Prerequisites
 
 - Python 3.10+
-- Meta Smart Glasses paired and connected to the laptop via ADB/scrcpy (see `docs/hardware_mirror.md`)
-- All API keys filled in (Gemini, ElevenLabs, MongoDB Atlas, Snowflake)
-- Known faces directory populated with at least one reference image + profile JSON
+- A MongoDB Atlas cluster with the `auraguard.events` collection (or whatever names you configure)
+- API keys filled in `.env`
 
-#### Step 1 — Environment Setup
+### Step 1 — Install dependencies
 
 ```bash
-# Clone the repo and install dependencies
 pip install -r requirements.txt
+```
 
-# Copy the example env file and fill in your keys
+### Step 2 — Configure `.env`
+
+```bash
 cp .env.example .env
 ```
 
-Open `.env` and set every value. The minimum required keys for a full demo are:
+Fill in the MongoDB section at minimum. The Snowflake variables are required by `DashboardSettings` (pydantic will reject missing fields) but Snowflake is stubbed so the values don't need to be real — you can use placeholder strings:
 
-| Variable | What it does |
-|----------|-------------|
-| `GEMINI_API_KEY` | Powers health item detection and secondary verification |
-| `ELEVENLABS_API_KEY` + `ELEVENLABS_VOICE_ID` | Synthesizes the patient's voice alerts |
-| `MONGODB_URI` / `MONGODB_DB` / `MONGODB_COLLECTION` | Stores events for the live dashboard |
-| `SNOWFLAKE_*` | Feeds the longitudinal health trend charts |
-| `PATIENT_NAME` / `PATIENT_ID` | Personalizes every voice alert (e.g. `Ismail`, `patient_001`) |
-| `GLASSES_AUDIO_DEVICE` | Routes audio to the glasses speaker |
+```dotenv
+# Required — must be real
+MONGODB_URI=mongodb+srv://<user>:<password>@cluster0.xxxxx.mongodb.net/...
+MONGODB_DB=auraguard
+MONGODB_COLLECTION=events
+PATIENT_NAME=Ismail
+PATIENT_ID=patient_001
 
-#### Step 2 — Mirror the Glasses to the Laptop
+# Required by settings model — can be placeholders if you don't have Snowflake
+SNOWFLAKE_ACCOUNT=placeholder
+SNOWFLAKE_USER=placeholder
+SNOWFLAKE_PASSWORD=placeholder
+SNOWFLAKE_DATABASE=placeholder
+SNOWFLAKE_SCHEMA=placeholder
+SNOWFLAKE_WAREHOUSE=placeholder
 
-Follow `docs/hardware_mirror.md` to establish the scrcpy/ADB mirror. The Vision Engine reads from this mirrored video source. Once the mirror window is visible on screen, you're ready.
-
-#### Step 3 — Launch All Services
-
-```bash
-python run_all.py
+# Not used by the dashboard — can be placeholders
+GEMINI_API_KEY=placeholder
+ELEVENLABS_API_KEY=placeholder
+ELEVENLABS_VOICE_ID=placeholder
+GLASSES_AUDIO_DEVICE=placeholder
 ```
 
-This starts all three services simultaneously:
+### Step 3 — Seed MongoDB with test events (optional)
 
-| Service | URL |
-|---------|-----|
-| Vision Engine | `http://localhost:5000` |
-| AI Brain | `http://localhost:8000` |
-| Caregiver Portal | `http://localhost:8501` |
+If your collection is empty, run the test script to insert sample events:
 
-Open the Caregiver Portal in your browser at `http://localhost:8501` — you'll see the live event feed and health trend charts load within a few seconds.
+```bash
+python test_mongo.py
+```
+
+This inserts a few sample `health` and `identity` event documents so the live feed has something to display.
+
+### Step 4 — Launch the dashboard
+
+```bash
+streamlit run services/dashboard/app.py --server.port 8501
+```
+
+Open `http://localhost:8501` in your browser.
+
+### What you should see
+
+- **Live Feed tab** — a color-coded table of events (yellow rows for health events, green for identity). Refreshes every 5 seconds automatically.
+- **Health Trends tab** — an empty Plotly chart with the message "Snowflake unavailable — chart not available" (expected on this branch).
+- **Sidebar** — a "Family Sync" form. Upload a photo, fill in the fields, and click Save. Check `services/vision/known_faces/` to confirm the `.jpg` and `.json` were written.
+- **MongoDB warning** — disconnect your internet or use a bad URI to see the yellow warning banner appear above the table while stale cached data continues to display.
 
 ---
 
-## Architecture
+## Graceful Degradation
+
+The dashboard is designed to never crash due to an external service being unavailable:
+
+| Failure | Behavior |
+|---|---|
+| MongoDB unreachable | Shows last cached events + yellow warning banner |
+| MongoDB returns empty | Shows "No events yet." info message |
+| Snowflake unavailable | Shows placeholder chart + info message (always on this branch) |
+| Missing env var at startup | Logs error and exits with code 1 before rendering anything |
+
+---
+
+## How It Fits Into the Full System
+
+The dashboard is the **read-only consumer** at the end of the AuraGuard AI pipeline. It never writes to MongoDB (except indirectly via the Family Sync sidebar writing to the local filesystem). Here's where it sits:
 
 ```
-Meta Smart Glasses (POV stream)
-        │
+Meta Smart Glasses
+        │  (POV video stream via scrcpy/ADB)
         ▼
-┌─────────────────────┐
-│  Vision Engine      │  Python + OpenCV  :5000
-│  - Face Recognition │
-│  - Health Detection │
-│    (Gemini)         │
-└────────┬────────────┘
-         │ POST /event  (JSON Contract)
-         ▼
-┌─────────────────────┐
-│  AI Brain (FastAPI) │  Gemini + ElevenLabs  :8000
-│  - Multimodal verify│
-│  - Voice synthesis  │
-│  - Pygame playback  │
-└────────┬────────────┘
-         │ Motor async write
-         ▼
-┌─────────────────────┐        ┌──────────────────────┐
-│   MongoDB Atlas     │        │   Snowflake DW        │
-│   (live events)     │        │   (health trends)     │
-└────────┬────────────┘        └──────────┬───────────┘
-         └──────────────┬─────────────────┘
-                        ▼
-              ┌──────────────────┐
-              │ Caregiver Portal │  Streamlit  :8501
-              │  Live Feed       │
-              │  Trend Charts    │
-              └──────────────────┘
+Vision Engine  :5000
+  - Detects faces using Gemini multimodal voting
+  - Detects health items (eating, drinking, medicine)
+  - POSTs JSON events to the AI Brain
+        │  POST /event
+        ▼
+AI Brain  :8000
+  - Validates events against the JSON Contract
+  - Verifies health events with Gemini
+  - Generates personalized voice scripts
+  - Synthesizes speech via ElevenLabs
+  - Plays audio through the glasses speaker
+  - Writes enriched Event_Records to MongoDB Atlas
+        │  Motor async write
+        ▼
+MongoDB Atlas  ◄──────────────────────────────────────────┐
+        │  pymongo read (every 5 seconds)                  │
+        ▼                                                  │
+Caregiver Dashboard  :8501  ◄── THIS BRANCH               │
+  - Live event feed (color-coded)                          │
+  - Health trend charts (Snowflake)                        │
+  - Family Sync sidebar ─────────────────────────────────►┘
+                          writes known_faces/ to disk,
+                          Vision Engine picks up on restart
 ```
 
----
+### The JSON Contract
 
-## Quick Start
-
-```bash
-# 1. Install all dependencies
-pip install -r requirements.txt
-
-# 2. Copy and fill in your API keys
-cp .env.example .env
-
-# 3. Launch everything
-python run_all.py
-```
-
----
-
-## The JSON Contract
-
-Every event flows through this shared schema:
+Every document the dashboard reads from MongoDB follows this schema (the `image_b64` field is intentionally excluded by the Brain before writing):
 
 ```json
 {
   "event_id": "uuid-v4",
   "timestamp": "2025-04-25T14:32:00Z",
   "patient_id": "patient_001",
-  "type": "health | identity",
-  "subtype": "eating | drinking | medicine_taken | face_recognized",
+  "type": "health",
+  "subtype": "drinking",
   "confidence": 0.91,
-  "image_b64": "<base64-encoded-frame>",
-  "metadata": {
-    "person_profile": {
-      "name": "Hussain",
-      "relationship": "son",
-      "background": "Software engineer living in Tampa.",
-      "last_conversation": "Told you about his new job."
-    }
-  },
-  "source": "vision_engine_v1"
+  "metadata": { "detected_item": "water" },
+  "source": "vision_engine_v1",
+  "verified": true,
+  "voice_script": "Good job, Ismail. I can see you are drinking water. Stay hydrated.",
+  "processing_status": "success",
+  "processed_at": "2025-04-25T14:32:01Z"
 }
 ```
 
----
+The dashboard reads `timestamp`, `type`, `subtype`, `confidence`, `verified`, `voice_script`, and `processing_status` for the live feed table.
 
-## Team
+### Family Sync — Closing the Loop
 
-| Role | Service | Port |
-|------|---------|------|
-| Vision Lead | `services/vision/` | 5000 |
-| AI Architect | `services/brain/` | 8000 |
-| Dashboard Lead | `services/dashboard/` | 8501 |
+The sidebar creates the files that the Vision Engine needs to recognize a new person:
 
----
+```
+services/vision/known_faces/
+├── hussain.jpg       ← uploaded via sidebar
+├── hussain.json      ← written by sidebar
+├── ismail.jpg        ← pre-existing
+└── ismail.json       ← pre-existing
+```
 
-## Hardware Mirror (Meta Smart Glasses → Laptop)
-
-See `docs/hardware_mirror.md` for step-by-step instructions to display the glasses POV live on the laptop for judges.
-
----
-
-## Impact
-
-Reduced safety incidents, earlier health intervention, and restored dignity for patients who deserve to live independently for as long as possible.
+The Vision Engine loads these at startup. Adding a new person via the dashboard and restarting the Vision Engine is all that's needed to extend the system's recognition capability — no code changes required.
 
 ---
 
-*Last updated: 2025-04-25*
+## Running the Full System
+
+To run all three services together (requires all API keys and hardware):
+
+```bash
+python run_all.py
+```
+
+See the main [README.md](README.md) for full setup instructions including hardware mirror setup for the Meta Smart Glasses.
+
+---
+
+## What's Not in This Branch
+
+| Feature | Status |
+|---|---|
+| Snowflake health trends | Stubbed — `fetch_health_trends()` returns `(None, True)`. Full implementation is in the Snowflake branch. |
+| AI Brain (`services/brain/`) | Not implemented here — separate branch |
+| Vision Engine full pipeline | `face_recognition_engine.py` exists; full Flask app wiring is in the Vision branch |
+| `run_all.py` launcher | Not in this branch — lives on main |
