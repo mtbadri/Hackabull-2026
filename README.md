@@ -86,15 +86,28 @@ Follow `docs/hardware_mirror.md` to establish the scrcpy/ADB mirror. The Vision 
 python run_all.py
 ```
 
-This starts all three services simultaneously:
+This starts all services simultaneously:
 
 | Service | URL |
 |---------|-----|
 | Vision Engine | `http://localhost:5000` |
 | AI Brain | `http://localhost:8000` |
 | Caregiver Portal | `http://localhost:8501` |
+| Event Audio | `http://localhost:8502` |
 
 Open the Caregiver Portal in your browser at `http://localhost:8501` — you'll see the live event feed and health trend charts load within a few seconds.
+
+---
+
+#### Alternative: Test with Laptop Webcam
+
+If you don't have Meta Smart Glasses available, you can test the Vision Engine using your laptop's built-in webcam:
+
+```bash
+python test_webcam.py
+```
+
+This runs the face recognition engine with camera index 0 (default webcam) instead of the RTMP stream. Press `q` in the video window to quit.
 
 ---
 
@@ -278,4 +291,4 @@ Reduced safety incidents, earlier health intervention, and restored dignity for 
 
 ---
 
-*Last updated: 2025-04-25*
+*Last updated: 2025-04-28*

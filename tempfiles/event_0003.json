@@ -1,6 +1,6 @@
 {
-  "event_id": "766e2ba6-53ea-413f-9e62-03921c30c4d6",
-  "timestamp": "2026-04-26T13:05:37.989508+00:00",
+  "event_id": "05f0aa60-4821-4fc2-b1a8-97a3c0ba2adf",
+  "timestamp": "2026-04-29T12:56:58.398348+00:00",
   "patient_id": "patient_001",
   "type": "identity",
   "subtype": "face_recognized",
@@ -14,9 +14,9 @@
       "shirt_color": "yellow"
     }
   },
-  "source": "vision_engine_v1",
+  "source": "vision_engine_yunet_sface",
   "verified": true,
-  "voice_script": "Badri, your son Ismail is here. He is a software engineer living in Tampa. Last time you spoke, he told you about his new job.",
+  "voice_script": "Ismail, your son Ismail is here. He is a software engineer living in Tampa. Last time you spoke, he told you about his new job.",
   "processing_status": "success",
-  "processed_at": "2026-04-26T13:05:37.989518+00:00"
+  "processed_at": "2026-04-29T12:56:58.398367+00:00"
 }

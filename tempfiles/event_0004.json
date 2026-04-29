@@ -1,22 +1,22 @@
 {
-  "event_id": "2252bc22-2b92-4954-9f85-9f52db77aca4",
-  "timestamp": "2026-04-26T13:05:50.274360+00:00",
+  "event_id": "79f7ec65-1f45-48c2-b56b-323b66ffd393",
+  "timestamp": "2026-04-29T12:57:08.430953+00:00",
   "patient_id": "patient_001",
   "type": "identity",
   "subtype": "face_recognized",
   "confidence": 1.0,
   "metadata": {
     "person_profile": {
-      "name": "mohammed",
-      "relationship": "dad",
-      "background": "He is a doctor living in NYC",
-      "last_conversation": "you meet his kids",
-      "shirt_color": "green"
+      "name": "Ismail",
+      "relationship": "son",
+      "background": "He is a software engineer living in Tampa",
+      "last_conversation": "he told you about his new job",
+      "shirt_color": "yellow"
     }
   },
-  "source": "vision_engine_v1",
+  "source": "vision_engine_yunet_sface",
   "verified": true,
-  "voice_script": "Badri, your dad mohammed is here. He is a doctor living in NYC. Last time you spoke, you meet his kids.",
+  "voice_script": "Ismail, your son Ismail is here. He is a software engineer living in Tampa. Last time you spoke, he told you about his new job.",
   "processing_status": "success",
-  "processed_at": "2026-04-26T13:05:50.274370+00:00"
+  "processed_at": "2026-04-29T12:57:08.430969+00:00"
 }
