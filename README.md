@@ -29,7 +29,7 @@ AuraGuard AI transforms Meta Smart Glasses into a life-critical safety system. T
 | Layer | Technology |
 |-------|-----------|
 | Wearable Hardware | Meta Smart Glasses (POV stream via scrcpy/ADB) |
-| Vision Engine | Python, OpenCV, `face_recognition`, Flask |
+| Vision Engine | Python, OpenCV, YuNet + SFace (ONNX), ONNXRuntime, Flask |
 | AI Reasoning | Google Gemini (multimodal) |
 | Voice Synthesis | ElevenLabs |
 | Audio Playback | Pygame |
@@ -107,7 +107,7 @@ If you don't have Meta Smart Glasses available, you can test the Vision Engine u
 python test_webcam.py
 ```
 
-This runs the face recognition engine with camera index 0 (default webcam) instead of the RTMP stream. Press `q` in the video window to quit.
+This runs the face recognition engine with camera index 0 (default webcam) instead of the RTMP stream. Press `q` in the video window to quit. The webcam will automatically release when you exit.
 
 ---
 
@@ -118,7 +118,7 @@ This runs the face recognition engine with camera index 0 (default webcam) inste
 **What to do:** Have a person whose photo is in the Known Faces Directory walk into the patient's field of view.
 
 **What happens:**
-1. The Vision Engine detects a face in the current frame and matches it against the stored encodings using the `face_recognition` library.
+1. The Vision Engine detects a face using YuNet and generates an embedding using SFace (both running locally via ONNX/ONNXRuntime, no external API calls).
 2. It constructs an `identity` event with the matched person's full profile — name, relationship, background, and last conversation summary — and POSTs it to the Brain.
 3. The Brain skips Gemini verification for identity events (confidence is already established locally) and immediately generates a personalized voice script, for example:
    > *"Ismail, your son Hussain is here. He is a software engineer living in Tampa. Last time you spoke, he told you about his new job."*
